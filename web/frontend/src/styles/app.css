@@ -416,7 +416,110 @@ body {
   }
 }
 
-/* --------------------------------------------------------- stage collapse */
+/* --------------------------------------------------------- stage detail page */
+
+.app__stage-detail {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-4);
+  min-height: calc(100vh - 60px);
+}
+
+.stage-detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+  transition: background 150ms, color 150ms;
+}
+
+.stage-detail__back:hover {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+
+.stage-detail__title {
+  font-size: var(--text-xl);
+  margin: 0 0 var(--space-4) 0;
+  color: var(--text);
+}
+
+.stage-detail__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* --------------------------------------------------------- timeline stage buttons */
+
+.timeline__stage-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: default;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  transition: background 150ms, border-color 150ms;
+  margin-bottom: var(--space-1);
+}
+
+.timeline__stage-btn[data-clickable] {
+  cursor: pointer;
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.timeline__stage-btn[data-clickable]:hover {
+  background: var(--accent-soft);
+}
+
+.timeline__stage-btn[data-status='running'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  animation: stage-pulse 2s ease-in-out infinite;
+}
+
+.timeline__stage-btn[data-status='done'] {
+  border-color: var(--lean-bearish);
+}
+
+.timeline__stage-icon {
+  font-size: 1.1em;
+}
+
+.timeline__stage-name {
+  flex: 1;
+}
+
+.timeline__stage-arrow {
+  color: var(--accent);
+  font-size: 1.1em;
+  transition: transform 150ms;
+}
+
+.timeline__stage-btn[data-clickable]:hover .timeline__stage-arrow {
+  transform: translateX(3px);
+}
+
+@keyframes stage-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
 
 .result-view {
   display: flex;
