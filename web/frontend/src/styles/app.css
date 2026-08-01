@@ -273,12 +273,37 @@ body {
 }
 
 .timeline__stage-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
   margin: 0 0 var(--space-2);
+  padding: var(--space-1) 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
+  transition: color 160ms ease;
+}
+
+.timeline__stage-label:hover {
+  color: var(--text);
+}
+
+.timeline__chevron {
+  display: inline-block;
+  font-size: 8px;
+  transition: transform 200ms ease;
+  flex-shrink: 0;
+}
+
+.timeline__chevron[data-open] {
+  transform: rotate(90deg);
 }
 
 .timeline__list {
@@ -298,7 +323,12 @@ body {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 13px;
+  cursor: pointer;
   transition: background 160ms ease, color 160ms ease;
+}
+
+.timeline__item:hover:not([data-status='running']) {
+  background: var(--bg-sunken);
 }
 
 .timeline__item[data-status='running'] {
@@ -342,6 +372,38 @@ body {
   .timeline__item[data-status='running'] .timeline__dot {
     animation: none;
   }
+  .timeline__chevron {
+    transition: none;
+  }
+  .stage-collapse {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------- stage collapse */
+
+.result-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stage-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms ease-out;
+}
+
+.stage-collapse[data-expanded='true'] {
+  grid-template-rows: 1fr;
+}
+
+.stage-collapse__inner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 /* ------------------------------------------------------------------ badges */

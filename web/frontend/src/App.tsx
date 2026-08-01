@@ -5,6 +5,7 @@ import { ResultView } from './components/ResultView'
 import { RunControls } from './components/RunControls'
 import { Timeline } from './components/Timeline'
 import { useAnalysisStream } from './hooks/useAnalysisStream'
+import { TIMELINE_NODES, type Stage } from './lib/nodes'
 import {
   fetchHistory,
   fetchHistoryDetail,
@@ -22,6 +23,7 @@ export default function App() {
   const [archived, setArchived] = useState<View | null>(null)
   const [demo, setDemo] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expandedStages, setExpandedStages] = useState<Set<Stage>>(new Set())
 
   const refreshHistory = useCallback(() => {
     fetchHistory().then(setHistory).catch(() => undefined)
@@ -37,10 +39,57 @@ export default function App() {
     if (state.runStatus === 'completed' || state.runStatus === 'failed') refreshHistory()
   }, [state.runStatus, refreshHistory])
 
+  const toggleStage = useCallback((stage: Stage) => {
+    setExpandedStages((prev) => {
+      const next = new Set(prev)
+      if (next.has(stage)) next.delete(stage)
+      else next.add(stage)
+      return next
+    })
+  }, [])
+
+  // Auto-expand the stage of any currently-running node.
+  useEffect(() => {
+    if (archived) return
+    const running = Object.entries(state.nodes).filter(([, s]) => s === 'running')
+    if (running.length === 0) return
+    setExpandedStages((prev) => {
+      const next = new Set(prev)
+      let changed = false
+      for (const [node] of running) {
+        const tn = TIMELINE_NODES.find((t) => t.node === node)
+        if (tn && !next.has(tn.stage)) {
+          next.add(tn.stage)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [state.nodes, archived])
+
+  // Auto-expand risk stage on completion (final decision).
+  useEffect(() => {
+    if (archived) return
+    if (state.runStatus === 'completed') {
+      setExpandedStages((prev) => {
+        if (prev.has('risk')) return prev
+        return new Set(prev).add('risk')
+      })
+    }
+  }, [state.runStatus, archived])
+
+  // Expand all stages when viewing archived results.
+  useEffect(() => {
+    if (archived) {
+      setExpandedStages(new Set<Stage>(['analysis', 'research', 'trading', 'risk']))
+    }
+  }, [archived])
+
   const handleStart = useCallback(
     async (ticker: string, date: string) => {
       setError(null)
       setArchived(null)
+      setExpandedStages(new Set())
       reset()
       markStarting()
       try {
@@ -63,6 +112,7 @@ export default function App() {
       if (row.status === 'running') {
         // Still live: rejoin the stream and let replay rebuild the view.
         setArchived(null)
+        setExpandedStages(new Set())
         reset()
         watch(row.id)
         return
@@ -107,7 +157,11 @@ export default function App() {
 
       <div className="app__body">
         <aside className="app__column app__column--timeline">
-          <Timeline nodes={archived ? {} : state.nodes} />
+          <Timeline
+            nodes={archived ? {} : state.nodes}
+            expandedStages={expandedStages}
+            onToggleStage={toggleStage}
+          />
         </aside>
 
         <main className="app__column app__column--main">
@@ -119,7 +173,7 @@ export default function App() {
           )}
 
           {hasContent ? (
-            <ResultView view={view} />
+            <ResultView view={view} expandedStages={expandedStages} />
           ) : (
             <p className="empty">
               输入股票代码与交易日期，点击「开始分析」；分析过程会实时显示在这里。
