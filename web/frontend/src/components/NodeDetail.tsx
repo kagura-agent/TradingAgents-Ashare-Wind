@@ -7,7 +7,6 @@ import { ReportCard } from './ReportCard'
 
 interface Props {
   slug: string
-  label: string
   view: ResultViewModel
 }
 
@@ -21,7 +20,7 @@ const SLUG_TO_REPORT_KEY: Record<string, string> = {
   'industry-chain-analyst': 'industry_report',
 }
 
-export function NodeDetail({ slug, label, view }: Props) {
+export function NodeDetail({ slug, view }: Props) {
   const content = renderNodeContent(slug, view)
 
   return (

@@ -3,7 +3,9 @@
 import type { ConnectionState } from '../hooks/useAnalysisStream'
 
 const TEXT: Record<ConnectionState, string> = {
-  idle: '未连接',
+  // Not "未连接": before a run there is nothing to connect to, and phrasing the
+  // idle state as a connection failure reads like something is broken.
+  idle: '待机中',
   connecting: '连接中…',
   open: '实时连接',
   reconnecting: '重新连接中…',

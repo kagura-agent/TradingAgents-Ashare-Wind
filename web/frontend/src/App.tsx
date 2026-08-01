@@ -191,7 +191,6 @@ export default function App() {
               <h2 className="node-content__title">{selectedLabel}</h2>
               <NodeDetail
                 slug={selectedSlug}
-                label={selectedLabel}
                 view={view}
               />
             </div>
