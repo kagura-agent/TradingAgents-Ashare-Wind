@@ -2,6 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.interface import route_to_vendor
 
 
@@ -43,6 +44,15 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
+    # Resolve here rather than in each vendor: this signature is what promises
+    # the config fallback, and only yfinance_news honoured it. Wind blew up on
+    # int(None) and alpha_vantage on timedelta(days=None) whenever the model
+    # omitted these optional arguments.
+    config = get_config()
+    if look_back_days is None:
+        look_back_days = config["global_news_lookback_days"]
+    if limit is None:
+        limit = config["global_news_article_limit"]
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool

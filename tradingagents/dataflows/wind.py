@@ -285,6 +285,11 @@ def _wind_mcp_request(
     }
 
     resp = requests.post(endpoint, json=body, headers=headers, timeout=timeout)
+    # The MCP endpoint replies as text/event-stream with no charset parameter,
+    # and requests falls back to ISO-8859-1 for text/* in that case — which
+    # turns every Chinese character in a news item or announcement into
+    # mojibake before the analysts ever see it. MCP transport is UTF-8.
+    resp.encoding = "utf-8"
     if not resp.ok:
         raise RuntimeError(
             f"Wind MCP HTTP {resp.status_code} for {server_type}.{method}: {resp.text[:300]}"
