@@ -1,0 +1,117 @@
+/**
+ * Design tokens.
+ *
+ * One place for colour, spacing, radius and elevation, defined against a
+ * light/dark pair so every component can be written once. Components reference
+ * tokens only — no literal colours below this file.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Neutrals */
+  --bg: #f6f7f9;
+  --bg-raised: #ffffff;
+  --bg-sunken: #eceef2;
+  --border: #dfe3e8;
+  --border-strong: #c6ccd4;
+
+  /* Text */
+  --text: #16191d;
+  --text-muted: #5b6472;
+  --text-faint: #8a94a3;
+
+  /* Brand + semantic */
+  --accent: #2f6df6;
+  --accent-soft: rgba(47, 109, 246, 0.12);
+  --bullish: #d0342c;
+  --bullish-soft: rgba(208, 52, 44, 0.12);
+  --lean-bullish: #e06a2b;
+  --lean-bullish-soft: rgba(224, 106, 43, 0.12);
+  --neutral: #6b7280;
+  --neutral-soft: rgba(107, 114, 128, 0.14);
+  --lean-bearish: #1f9d63;
+  --lean-bearish-soft: rgba(31, 157, 99, 0.12);
+  --bearish: #0f7a4d;
+  --bearish-soft: rgba(15, 122, 77, 0.14);
+  --danger: #c0392b;
+  --danger-soft: rgba(192, 57, 43, 0.12);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow: 0 4px 16px rgba(16, 24, 40, 0.08);
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Consolas, monospace;
+
+  --header-height: 60px;
+  --sidebar-width: 260px;
+  --history-width: 300px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --bg-raised: #171b21;
+    --bg-sunken: #0b0e12;
+    --border: #262c35;
+    --border-strong: #3a424e;
+
+    --text: #e7ebf0;
+    --text-muted: #9aa5b4;
+    --text-faint: #6c7787;
+
+    --accent: #6b9dff;
+    --accent-soft: rgba(107, 157, 255, 0.16);
+    --bullish: #ff6b60;
+    --bullish-soft: rgba(255, 107, 96, 0.16);
+    --lean-bullish: #ff9a55;
+    --lean-bullish-soft: rgba(255, 154, 85, 0.16);
+    --neutral: #98a1ae;
+    --neutral-soft: rgba(152, 161, 174, 0.16);
+    --lean-bearish: #4bd08c;
+    --lean-bearish-soft: rgba(75, 208, 140, 0.16);
+    --bearish: #35b97a;
+    --bearish-soft: rgba(53, 185, 122, 0.16);
+    --danger: #ff7a6b;
+    --danger-soft: rgba(255, 122, 107, 0.16);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* A-share convention: red is up. The tone tokens below are named by market
+   direction rather than colour so the mapping lives in exactly one place. */
+[data-tone='bullish'] {
+  --tone: var(--bullish);
+  --tone-soft: var(--bullish-soft);
+}
+[data-tone='lean-bullish'] {
+  --tone: var(--lean-bullish);
+  --tone-soft: var(--lean-bullish-soft);
+}
+[data-tone='neutral'] {
+  --tone: var(--neutral);
+  --tone-soft: var(--neutral-soft);
+}
+[data-tone='lean-bearish'] {
+  --tone: var(--lean-bearish);
+  --tone-soft: var(--lean-bearish-soft);
+}
+[data-tone='bearish'] {
+  --tone: var(--bearish);
+  --tone-soft: var(--bearish-soft);
+}
