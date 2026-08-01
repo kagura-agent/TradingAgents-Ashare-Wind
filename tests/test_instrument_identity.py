@@ -13,12 +13,14 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     resolve_instrument_identity,
 )
+from tradingagents.dataflows.config import set_config
 
 
 @pytest.mark.unit
 class ResolveInstrumentIdentityTests(unittest.TestCase):
     def setUp(self):
         resolve_instrument_identity.cache_clear()
+        set_config({"data_vendors": {"core_stock_apis": "yfinance"}})
 
     def test_resolves_company_metadata_from_yfinance(self):
         with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:

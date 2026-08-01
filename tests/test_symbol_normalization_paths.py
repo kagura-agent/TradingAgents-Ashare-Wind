@@ -10,10 +10,12 @@ import pandas as pd
 import tradingagents.agents.utils.agent_utils as au
 import tradingagents.dataflows.yfinance_news as ynews
 import tradingagents.graph.trading_graph as tg
+from tradingagents.dataflows.config import set_config
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
 def test_identity_lookup_normalizes_symbol(monkeypatch):
+    set_config({"data_vendors": {"core_stock_apis": "yfinance"}})
     seen = {}
 
     class FakeTicker:
@@ -45,9 +47,11 @@ def test_fetch_returns_normalizes_symbol(monkeypatch):
 
     monkeypatch.setattr(tg.yf, "Ticker", FakeTicker)
 
-    # _fetch_returns does not use ``self``; call unbound to avoid building the graph.
+    # _fetch_returns accesses self.config; supply a lightweight stub.
+    class _Stub:
+        config = {"data_vendors": {"core_stock_apis": "yfinance"}}
     raw, alpha, days = TradingAgentsGraph._fetch_returns(
-        None, "XAUUSD", "2025-01-02", holding_days=5, benchmark="SPY"
+        _Stub(), "XAUUSD", "2025-01-02", holding_days=5, benchmark="SPY"
     )
 
     assert queried[0] == "GC=F"  # stock symbol normalized (#984)

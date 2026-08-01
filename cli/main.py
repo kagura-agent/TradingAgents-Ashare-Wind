@@ -41,6 +41,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from tradingagents.agents.reviewers import run_ai_report_review
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
@@ -49,7 +50,6 @@ from tradingagents.graph.analyst_execution import (
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.agents.reviewers import run_ai_report_review
 from tradingagents.reporting import write_report_tree
 
 console = Console()

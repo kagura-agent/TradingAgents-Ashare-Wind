@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-
 SECTION_KEYS = (
     ("Market Analyst", "market_report", 3500),
     ("Sentiment Analyst", "sentiment_report", 3500),

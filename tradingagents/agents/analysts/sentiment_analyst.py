@@ -19,6 +19,7 @@ from tradingagents.agents.utils.structured import (
     invoke_structured_or_freetext,
 )
 
+
 def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
 

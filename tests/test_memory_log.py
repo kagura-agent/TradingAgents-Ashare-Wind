@@ -490,6 +490,7 @@ class TestDeferredReflection:
         stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
         spy_prices   = [400.0, 402.0, 404.0, 403.0, 405.0, 406.0]
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"data_vendors": {"core_stock_apis": "yfinance"}}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             def _make_ticker(sym):
                 m = MagicMock()
@@ -504,6 +505,7 @@ class TestDeferredReflection:
     def test_fetch_returns_too_recent(self):
         """Only 1 data point available → returns (None, None, None), no crash."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"data_vendors": {"core_stock_apis": "yfinance"}}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             m = MagicMock()
             m.history.return_value = _price_df([100.0])
@@ -514,6 +516,7 @@ class TestDeferredReflection:
     def test_fetch_returns_delisted(self):
         """Empty DataFrame → returns (None, None, None), no crash."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"data_vendors": {"core_stock_apis": "yfinance"}}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             m = MagicMock()
             m.history.return_value = pd.DataFrame({"Close": []})
@@ -526,6 +529,7 @@ class TestDeferredReflection:
         stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
         spy_prices   = [400.0, 402.0, 403.0]
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"data_vendors": {"core_stock_apis": "yfinance"}}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             def _make_ticker(sym):
                 m = MagicMock()
@@ -571,8 +575,8 @@ class TestDeferredReflection:
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.config = {"benchmark_ticker": None,
                              "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
-        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "600519.SS") == "000001.SS"
-        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "000001.SZ") == "399001.SZ"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "600519.SS") == "000300.SH"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "000001.SZ") == "000300.SH"
 
     def test_resolve_benchmark_us_ticker_defaults_to_spy(self):
         """US tickers (no dotted suffix) take the empty-suffix entry."""
