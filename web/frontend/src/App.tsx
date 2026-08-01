@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ConnectionBadge } from './components/ConnectionBadge'
 import { HistoryList } from './components/HistoryList'
+import { NodeDetail, nodeHasContent } from './components/NodeDetail'
 import { RunControls } from './components/RunControls'
-import { StageDetail } from './components/StageDetail'
 import { Timeline } from './components/Timeline'
 import { useAnalysisStream } from './hooks/useAnalysisStream'
-import { TIMELINE_NODES, type Stage } from './lib/nodes'
+import { VALID_SLUGS, nodeBySlug } from './lib/nodes'
 import {
   fetchHistory,
   fetchHistoryDetail,
@@ -19,41 +19,25 @@ import './styles/app.css'
 // --- Hash routing helpers ---
 interface Route {
   jobId: string | null
-  stage: Stage | null
+  nodeSlug: string | null
 }
-
-const VALID_STAGES = new Set<Stage>(['analysis', 'research', 'trading', 'risk'])
 
 function parseHash(): Route {
   const hash = window.location.hash.replace(/^#\/?/, '')
-  if (!hash) return { jobId: null, stage: null }
+  if (!hash) return { jobId: null, nodeSlug: null }
   const parts = hash.split('/')
   const jobId = parts[0] || null
-  const stage = VALID_STAGES.has(parts[1] as Stage) ? (parts[1] as Stage) : null
-  return { jobId, stage }
+  const nodeSlug = VALID_SLUGS.has(parts[1]) ? parts[1] : null
+  return { jobId, nodeSlug }
 }
 
-function setHash(jobId: string | null, stage: Stage | null) {
+function setHash(jobId: string | null, nodeSlug: string | null) {
   if (!jobId) {
     window.location.hash = ''
-  } else if (!stage) {
+  } else if (!nodeSlug) {
     window.location.hash = `#/${jobId}`
   } else {
-    window.location.hash = `#/${jobId}/${stage}`
-  }
-}
-
-// --- Check if a stage has any content ---
-function stageHasContent(stage: Stage, view: View): boolean {
-  switch (stage) {
-    case 'analysis':
-      return view.reports.length > 0
-    case 'research':
-      return view.investmentDebate.length > 0 || view.investmentJudge !== null
-    case 'trading':
-      return view.traderPlan !== null
-    case 'risk':
-      return view.riskDebate.length > 0 || view.riskJudge !== null || view.decision !== null
+    window.location.hash = `#/${jobId}/${nodeSlug}`
   }
 }
 
@@ -87,11 +71,11 @@ export default function App() {
     if (state.runStatus === 'completed' || state.runStatus === 'failed') refreshHistory()
   }, [state.runStatus, refreshHistory])
 
-  // Navigate to a stage detail page
-  const navigateToStage = useCallback((stage: Stage) => {
+  // Navigate to a node detail page
+  const navigateToNode = useCallback((slug: string) => {
     const jobId = selectedId
     if (!jobId) return
-    setHash(jobId, stage)
+    setHash(jobId, slug)
   }, [selectedId])
 
   // Navigate back to overview
@@ -149,8 +133,17 @@ export default function App() {
   const view = archived ?? liveView
   const busy = state.runStatus === 'starting' || state.runStatus === 'running'
 
-  // Are we viewing a stage detail page?
-  const activeStage = route.stage
+  // Are we viewing a specific node?
+  const activeSlug = route.nodeSlug
+  const activeNode = activeSlug ? nodeBySlug(activeSlug) : null
+
+  // Check if any content exists (for the empty-state message)
+  const hasAnyContent = view.reports.length > 0
+    || view.investmentDebate.length > 0
+    || view.investmentJudge !== null
+    || view.traderPlan !== null
+    || view.riskDebate.length > 0
+    || view.decision !== null
 
   return (
     <div className="app">
@@ -169,11 +162,12 @@ export default function App() {
         <ConnectionBadge state={connection} />
       </header>
 
-      {activeStage ? (
-        /* ---- Stage detail page: full width, no columns ---- */
+      {activeNode ? (
+        /* ---- Node detail page: full width, no columns ---- */
         <div className="app__stage-detail">
-          <StageDetail
-            stage={activeStage}
+          <NodeDetail
+            slug={activeSlug!}
+            label={activeNode.label}
             view={view}
             onBack={navigateToOverview}
           />
@@ -184,8 +178,8 @@ export default function App() {
           <aside className="app__column app__column--timeline">
             <Timeline
               nodes={archived ? {} : state.nodes}
-              onSelectStage={navigateToStage}
-              stageHasContent={(s: Stage) => stageHasContent(s, view)}
+              onSelectNode={navigateToNode}
+              nodeHasContent={(slug: string) => nodeHasContent(slug, view)}
             />
           </aside>
 
@@ -199,10 +193,14 @@ export default function App() {
 
             <p className="empty">
               {busy
-                ? '分析进行中…点击左侧已完成的阶段查看详情'
-                : selectedId
-                  ? '分析已完成。点击左侧阶段查看各步骤详细报告。'
-                  : '输入股票代码与交易日期，点击「开始分析」。'}
+                ? '分析进行中…点击左侧已完成的节点查看详情'
+                : selectedId && archived
+                  ? (!hasAnyContent
+                    ? '❌ 该分析任务失败，无可用报告。请重新发起分析。'
+                    : '分析已完成。点击左侧节点查看各步骤详细报告。')
+                  : selectedId
+                    ? '等待分析结果…'
+                    : '输入股票代码与交易日期，点击「开始分析」。'}
             </p>
           </main>
 

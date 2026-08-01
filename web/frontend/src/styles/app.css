@@ -272,38 +272,17 @@ body {
   gap: var(--space-4);
 }
 
-.timeline__stage-label {
+.timeline__stage-header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  width: 100%;
-  margin: 0 0 var(--space-2);
-  padding: var(--space-1) 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-1);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
-  transition: color 160ms ease;
-}
-
-.timeline__stage-label:hover {
-  color: var(--text);
-}
-
-.timeline__chevron {
-  display: inline-block;
-  font-size: 8px;
-  transition: transform 200ms ease;
-  flex-shrink: 0;
-}
-
-.timeline__chevron[data-open] {
-  transform: rotate(90deg);
 }
 
 .timeline__list {
@@ -323,12 +302,49 @@ body {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 13px;
-  cursor: pointer;
   transition: background 160ms ease, color 160ms ease;
 }
 
-.timeline__item:hover:not([data-status='running']) {
+.timeline__item[data-clickable] {
+  padding: 0;
+}
+
+.timeline__node-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  transition: background 150ms, border-color 150ms;
+}
+
+.timeline__node-btn:hover {
   background: var(--bg-sunken);
+  border-color: var(--accent);
+}
+
+.timeline__node-label {
+  flex: 1;
+}
+
+.timeline__node-arrow {
+  color: var(--accent);
+  font-size: 1em;
+  opacity: 0;
+  transition: opacity 150ms, transform 150ms;
+}
+
+.timeline__node-btn:hover .timeline__node-arrow {
+  opacity: 1;
+  transform: translateX(2px);
 }
 
 .timeline__item[data-status='running'] {
@@ -459,66 +475,12 @@ body {
 
 /* --------------------------------------------------------- timeline stage buttons */
 
-.timeline__stage-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3) var(--space-3);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-muted);
-  cursor: default;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-align: left;
-  transition: background 150ms, border-color 150ms;
-  margin-bottom: var(--space-1);
-}
-
-.timeline__stage-btn[data-clickable] {
-  cursor: pointer;
-  color: var(--text);
-  border-color: var(--accent);
-}
-
-.timeline__stage-btn[data-clickable]:hover {
-  background: var(--accent-soft);
-}
-
-.timeline__stage-btn[data-status='running'] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--text);
-  animation: stage-pulse 2s ease-in-out infinite;
-}
-
-.timeline__stage-btn[data-status='done'] {
-  border-color: var(--lean-bearish);
-}
-
 .timeline__stage-icon {
   font-size: 1.1em;
 }
 
 .timeline__stage-name {
   flex: 1;
-}
-
-.timeline__stage-arrow {
-  color: var(--accent);
-  font-size: 1.1em;
-  transition: transform 150ms;
-}
-
-.timeline__stage-btn[data-clickable]:hover .timeline__stage-arrow {
-  transform: translateX(3px);
-}
-
-@keyframes stage-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
 }
 
 .result-view {
