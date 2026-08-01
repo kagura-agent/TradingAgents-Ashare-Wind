@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradingAgents · A股多智能体分析平台</title>
+<style>
+/* ========== Reset & Base ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-card: #1c2128;
+  --bg-hover: #21262d;
+  --border: #30363d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent-blue: #58a6ff;
+  --accent-green: #3fb950;
+  --accent-red: #f85149;
+  --accent-yellow: #d29922;
+  --accent-purple: #bc8cff;
+  --accent-orange: #f0883e;
+  --accent-cyan: #39d2c0;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+html { font-size: 14px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+a { color: var(--accent-blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ========== Layout ========== */
+.app-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky; top: 0; z-index: 100;
+}
+.app-header h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.header-controls input, .header-controls button {
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+.header-controls input:focus { border-color: var(--accent-blue); }
+.header-controls input::placeholder { color: var(--text-muted); }
+#ticker-input { width: 140px; }
+#date-input { width: 160px; }
+#analyze-btn {
+  background: linear-gradient(135deg, var(--accent-blue), #1f6feb);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 24px;
+  transition: opacity .2s;
+}
+#analyze-btn:hover { opacity: .85; }
+#analyze-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr 280px;
+  gap: 0;
+  height: calc(100vh - 57px);
+}
+
+/* ========== Left: Timeline ========== */
+.sidebar-left {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+}
+.sidebar-left h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+}
+.timeline { list-style: none; }
+.timeline li {
+  position: relative;
+  padding: 8px 8px 8px 28px;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  transition: background .2s, color .2s;
+}
+.timeline li::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background .3s;
+}
+.timeline li.pending::before { background: var(--border); }
+.timeline li.running::before {
+  background: var(--accent-yellow);
+  box-shadow: 0 0 8px var(--accent-yellow);
+  animation: pulse 1.2s infinite;
+}
+.timeline li.completed::before { background: var(--accent-green); }
+.timeline li.running {
+  color: var(--accent-yellow);
+  background: rgba(210,153,34,.08);
+  font-weight: 600;
+}
+.timeline li.completed { color: var(--text-muted); }
+.timeline-divider {
+  border: none;
+  border-top: 1px dashed var(--border);
+  margin: 10px 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+/* ========== Main Content ========== */
+.main-content {
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  gap: 16px;
+}
+.empty-state .icon { font-size: 4rem; opacity: .3; }
+.empty-state p { font-size: 1rem; }
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.card-header:hover { background: var(--bg-hover); }
+.card-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-header .badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+.badge-analyst { background: rgba(88,166,255,.15); color: var(--accent-blue); }
+.badge-debate { background: rgba(188,140,255,.15); color: var(--accent-purple); }
+.badge-trader { background: rgba(240,136,62,.15); color: var(--accent-orange); }
+.badge-risk { background: rgba(248,81,73,.15); color: var(--accent-red); }
+.badge-decision { background: rgba(63,185,80,.15); color: var(--accent-green); }
+.card-header .toggle { color: var(--text-muted); font-size: 1.2rem; transition: transform .2s; }
+.card-header.collapsed .toggle { transform: rotate(-90deg); }
+.card-body {
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.card-body.collapsed { display: none; }
+
+/* Debate panels */
+.debate-container { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.debate-column { min-width: 0; }
+.debate-column h4 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  letter-spacing: .5px;
+}
+.debate-entry {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.debate-entry.bull { border-left: 3px solid var(--accent-green); }
+.debate-entry.bear { border-left: 3px solid var(--accent-red); }
+.debate-entry.aggressive { border-left: 3px solid var(--accent-red); }
+.debate-entry.conservative { border-left: 3px solid var(--accent-blue); }
+.debate-entry.neutral { border-left: 3px solid var(--accent-yellow); }
+
+/* Risk debate: 3 columns */
+.risk-debate-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* Decision card */
+.decision-card {
+  background: linear-gradient(135deg, rgba(63,185,80,.08), rgba(88,166,255,.08));
+  border: 1px solid var(--accent-green);
+}
+.decision-card .card-header { background: rgba(63,185,80,.12); border-bottom-color: var(--accent-green); }
+.decision-rating {
+  display: inline-block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  padding: 4px 20px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+}
+.rating-buy { background: rgba(63,185,80,.2); color: var(--accent-green); }
+.rating-sell { background: rgba(248,81,73,.2); color: var(--accent-red); }
+.rating-hold { background: rgba(210,153,34,.2); color: var(--accent-yellow); }
+
+/* Status bar */
+.status-bar {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+/* ========== Right: History ========== */
+.sidebar-right {
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+}
+.sidebar-right h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+}
+.history-list { list-style: none; }
+.history-item {
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .2s, border-color .2s;
+}
+.history-item:hover { background: var(--bg-hover); border-color: var(--border); }
+.history-item.active { background: var(--bg-hover); border-color: var(--accent-blue); }
+.history-ticker {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.history-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.history-status {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+}
+.history-status.completed { background: rgba(63,185,80,.15); color: var(--accent-green); }
+.history-status.running { background: rgba(210,153,34,.15); color: var(--accent-yellow); }
+.history-status.failed { background: rgba(248,81,73,.15); color: var(--accent-red); }
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ========== Responsive ========== */
+@media (max-width: 1024px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar-left, .sidebar-right { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="app-header">
+  <h1>📊 TradingAgents</h1>
+  <div class="header-controls">
+    <input type="text" id="ticker-input" placeholder="股票代码 如 600519.SH" spellcheck="false">
+    <input type="date" id="date-input">
+    <button id="analyze-btn">开始分析</button>
+    <span id="status-text" style="color:var(--text-muted);font-size:.85rem;margin-left:8px;"></span>
+  </div>
+</header>
+
+<!-- Main Layout -->
+<div class="layout">
+
+  <!-- Left: Timeline -->
+  <aside class="sidebar-left">
+    <h2>执行进度</h2>
+    <ul class="timeline" id="timeline">
+      <li data-node="Market Analyst" class="pending">市场分析师</li>
+      <li data-node="Sentiment Analyst" class="pending">舆情分析师</li>
+      <li data-node="News Analyst" class="pending">新闻分析师</li>
+      <li data-node="Fundamentals Analyst" class="pending">基本面分析师</li>
+      <li data-node="Annual Report Analyst" class="pending">年报分析师</li>
+      <li data-node="Industry Chain Analyst" class="pending">产业链分析师</li>
+      <hr class="timeline-divider">
+      <li data-node="Bull Researcher" class="pending">多头研究员</li>
+      <li data-node="Bear Researcher" class="pending">空头研究员</li>
+      <li data-node="Research Manager" class="pending">研究主管</li>
+      <hr class="timeline-divider">
+      <li data-node="Trader" class="pending">交易员</li>
+      <hr class="timeline-divider">
+      <li data-node="Aggressive Analyst" class="pending">激进风控</li>
+      <li data-node="Conservative Analyst" class="pending">保守风控</li>
+      <li data-node="Neutral Analyst" class="pending">中性风控</li>
+      <li data-node="Portfolio Manager" class="pending">组合经理</li>
+    </ul>
+  </aside>
+
+  <!-- Center: Live Content -->
+  <main class="main-content" id="main-content">
+    <div class="empty-state" id="empty-state">
+      <div class="icon">🤖</div>
+      <p>输入股票代码和日期，开始多智能体协同分析</p>
+      <p style="font-size:.8rem;color:var(--text-muted);">支持 A 股代码（如 600519.SH、000858.SZ）</p>
+    </div>
+  </main>
+
+  <!-- Right: History -->
+  <aside class="sidebar-right">
+    <h2>历史记录</h2>
+    <ul class="history-list" id="history-list">
+      <li style="color:var(--text-muted);font-size:.85rem;padding:12px;">暂无记录</li>
+    </ul>
+  </aside>
+
+</div>
+
+<script>
+/* ========== State ========== */
+let currentJobId = null;
+let ws = null;
+let isRunning = false;
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+/* ========== Init ========== */
+document.addEventListener('DOMContentLoaded', () => {
+  // Default date: today
+  const today = new Date().toISOString().split('T')[0];
+  $('#date-input').value = today;
+
+  // Load history
+  loadHistory();
+
+  // Analyze button
+  $('#analyze-btn').addEventListener('click', startAnalysis);
+
+  // Enter key
+  $('#ticker-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') startAnalysis();
+  });
+});
+
+/* ========== API ========== */
+async function startAnalysis() {
+  if (isRunning) return;
+  const ticker = $('#ticker-input').value.trim();
+  const date = $('#date-input').value;
+  if (!ticker) { alert('请输入股票代码'); return; }
+  if (!date) { alert('请选择交易日期'); return; }
+
+  setRunning(true);
+  resetUI();
+
+  try {
+    const resp = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, date }),
+    });
+    const data = await resp.json();
+    if (data.error) { alert(data.error); setRunning(false); return; }
+    currentJobId = data.job_id;
+    connectWebSocket(data.job_id);
+  } catch (e) {
+    alert('启动分析失败: ' + e.message);
+    setRunning(false);
+  }
+}
+
+function connectWebSocket(jobId) {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/${jobId}`);
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    handleEvent(data);
+  };
+
+  ws.onclose = () => {
+    if (isRunning) {
+      setStatus('连接已断开');
+      setRunning(false);
+    }
+  };
+
+  ws.onerror = () => {
+    setStatus('WebSocket 连接错误');
+  };
+}
+
+async function loadHistory() {
+  try {
+    const resp = await fetch('/api/history');
+    const items = await resp.json();
+    renderHistory(items);
+  } catch (e) {
+    console.error('Load history failed:', e);
+  }
+}
+
+async function loadHistoryDetail(jobId) {
+  try {
+    const resp = await fetch(`/api/history/${jobId}`);
+    const data = await resp.json();
+    if (data.error) return;
+    renderHistoryResult(data);
+  } catch (e) {
+    console.error('Load detail failed:', e);
+  }
+}
+
+/* ========== Event Handler ========== */
+function handleEvent(ev) {
+  switch (ev.type) {
+    case 'status':
+      setStatus(ev.message || ev.status);
+      break;
+
+    case 'node_start':
+      setTimelineStatus(ev.node, 'running');
+      setStatus(`${ev.label || ev.node} 正在分析…`);
+      break;
+
+    case 'node_complete':
+      setTimelineStatus(ev.node, 'completed');
+      break;
+
+    case 'report':
+      addReportCard(ev);
+      break;
+
+    case 'debate':
+      addDebateEntry(ev);
+      break;
+
+    case 'debate_decision':
+      addDebateDecision(ev);
+      break;
+
+    case 'trader_plan':
+      addTraderCard(ev);
+      break;
+
+    case 'decision':
+      addDecisionCard(ev);
+      break;
+
+    case 'complete':
+      setStatus('✅ 分析完成');
+      setRunning(false);
+      loadHistory();
+      break;
+
+    case 'error':
+      setStatus('❌ ' + ev.message);
+      setRunning(false);
+      loadHistory();
+      break;
+
+    case 'ping':
+      break;  // keepalive
+
+    default:
+      console.log('Unknown event:', ev);
+  }
+}
+
+/* ========== UI Helpers ========== */
+function setRunning(running) {
+  isRunning = running;
+  $('#analyze-btn').disabled = running;
+  $('#analyze-btn').textContent = running ? '分析中…' : '开始分析';
+}
+
+function setStatus(msg) {
+  $('#status-text').textContent = msg;
+}
+
+function resetUI() {
+  // Clear main content
+  const main = $('#main-content');
+  main.innerHTML = '';
+
+  // Reset timeline
+  $$('.timeline li').forEach(li => {
+    li.className = 'pending';
+  });
+}
+
+function setTimelineStatus(node, status) {
+  const li = $(`.timeline li[data-node="${node}"]`);
+  if (li) li.className = status;
+}
+
+function createCard(id, title, badgeClass, badgeText) {
+  // Hide empty state
+  const empty = $('#empty-state');
+  if (empty) empty.remove();
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = id;
+  card.innerHTML = `
+    <div class="card-header" onclick="toggleCard('${id}')">
+      <h3>${title} <span class="badge ${badgeClass}">${badgeText}</span></h3>
+      <span class="toggle">▼</span>
+    </div>
+    <div class="card-body" id="${id}-body"></div>
+  `;
+  $('#main-content').appendChild(card);
+  // Auto scroll to new card
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  return card;
+}
+
+function toggleCard(id) {
+  const header = $(`#${id} .card-header`);
+  const body = $(`#${id}-body`);
+  if (!header || !body) return;
+  header.classList.toggle('collapsed');
+  body.classList.toggle('collapsed');
+}
+
+function addReportCard(ev) {
+  const id = `report-${ev.report_key}`;
+  if ($(`#${id}`)) {
+    // Update existing
+    $(`#${id}-body`).textContent = ev.content;
+    return;
+  }
+  const card = createCard(id, ev.label || ev.node, 'badge-analyst', '分析报告');
+  $(`#${id}-body`).textContent = ev.content;
+}
+
+/* Investment debate card management */
+let investDebateCreated = false;
+function ensureInvestDebateCard() {
+  if (investDebateCreated) return;
+  investDebateCreated = true;
+  const id = 'debate-investment';
+  const card = createCard(id, '投资辩论', 'badge-debate', '多空博弈');
+  $(`#${id}-body`).innerHTML = `
+    <div class="debate-container">
+      <div class="debate-column">
+        <h4>🟢 多头观点</h4>
+        <div id="debate-bull-entries"></div>
+      </div>
+      <div class="debate-column">
+        <h4>🔴 空头观点</h4>
+        <div id="debate-bear-entries"></div>
+      </div>
+    </div>
+    <div id="debate-invest-decision" style="margin-top:12px;display:none;">
+      <h4 style="color:var(--text-muted);font-size:.8rem;text-transform:uppercase;margin-bottom:8px;">⚖️ 研究主管裁决</h4>
+      <div class="debate-entry" id="invest-judge-text" style="border-left:3px solid var(--accent-purple);"></div>
+    </div>
+  `;
+}
+
+let riskDebateCreated = false;
+function ensureRiskDebateCard() {
+  if (riskDebateCreated) return;
+  riskDebateCreated = true;
+  const id = 'debate-risk';
+  const card = createCard(id, '风险评估', 'badge-risk', '三方博弈');
+  $(`#${id}-body`).innerHTML = `
+    <div class="risk-debate-container">
+      <div class="debate-column">
+        <h4>🔴 激进观点</h4>
+        <div id="risk-aggressive-entries"></div>
+      </div>
+      <div class="debate-column">
+        <h4>🔵 保守观点</h4>
+        <div id="risk-conservative-entries"></div>
+      </div>
+      <div class="debate-column">
+        <h4>🟡 中性观点</h4>
+        <div id="risk-neutral-entries"></div>
+      </div>
+    </div>
+    <div id="debate-risk-decision" style="margin-top:12px;display:none;">
+      <h4 style="color:var(--text-muted);font-size:.8rem;text-transform:uppercase;margin-bottom:8px;">⚖️ 组合经理裁决</h4>
+      <div class="debate-entry" id="risk-judge-text" style="border-left:3px solid var(--accent-purple);"></div>
+    </div>
+  `;
+}
+
+function addDebateEntry(ev) {
+  if (ev.phase === 'investment') {
+    ensureInvestDebateCard();
+    const containerId = ev.speaker === 'Bull Researcher' ? 'debate-bull-entries' : 'debate-bear-entries';
+    const cls = ev.speaker === 'Bull Researcher' ? 'bull' : 'bear';
+    const entry = document.createElement('div');
+    entry.className = `debate-entry ${cls}`;
+    entry.textContent = ev.content;
+    const container = $(`#${containerId}`);
+    if (container) container.appendChild(entry);
+  } else if (ev.phase === 'risk') {
+    ensureRiskDebateCard();
+    let containerId, cls;
+    if (ev.speaker === 'Aggressive Analyst') { containerId = 'risk-aggressive-entries'; cls = 'aggressive'; }
+    else if (ev.speaker === 'Conservative Analyst') { containerId = 'risk-conservative-entries'; cls = 'conservative'; }
+    else { containerId = 'risk-neutral-entries'; cls = 'neutral'; }
+    const entry = document.createElement('div');
+    entry.className = `debate-entry ${cls}`;
+    entry.textContent = ev.content;
+    const container = $(`#${containerId}`);
+    if (container) container.appendChild(entry);
+  }
+}
+
+function addDebateDecision(ev) {
+  if (ev.phase === 'investment') {
+    ensureInvestDebateCard();
+    const dec = $('#debate-invest-decision');
+    const text = $('#invest-judge-text');
+    if (dec) dec.style.display = 'block';
+    if (text) text.textContent = ev.content;
+  } else if (ev.phase === 'risk') {
+    ensureRiskDebateCard();
+    const dec = $('#debate-risk-decision');
+    const text = $('#risk-judge-text');
+    if (dec) dec.style.display = 'block';
+    if (text) text.textContent = ev.content;
+  }
+}
+
+function addTraderCard(ev) {
+  const id = 'trader-plan';
+  if ($(`#${id}`)) return;
+  const card = createCard(id, '交易员方案', 'badge-trader', '交易提案');
+  $(`#${id}-body`).textContent = ev.content;
+}
+
+function addDecisionCard(ev) {
+  const id = 'final-decision';
+  if ($(`#${id}`)) return;
+
+  // Detect rating
+  const content = ev.content || '';
+  let ratingLabel = '—';
+  let ratingClass = '';
+  const lc = content.toLowerCase();
+  if (lc.includes('strong buy') || lc.includes('强烈买入')) { ratingLabel = '强烈买入'; ratingClass = 'rating-buy'; }
+  else if (lc.includes('buy') || lc.includes('买入')) { ratingLabel = '买入'; ratingClass = 'rating-buy'; }
+  else if (lc.includes('strong sell') || lc.includes('强烈卖出')) { ratingLabel = '强烈卖出'; ratingClass = 'rating-sell'; }
+  else if (lc.includes('sell') || lc.includes('卖出')) { ratingLabel = '卖出'; ratingClass = 'rating-sell'; }
+  else if (lc.includes('hold') || lc.includes('持有') || lc.includes('观望')) { ratingLabel = '持有'; ratingClass = 'rating-hold'; }
+
+  const card = document.createElement('div');
+  card.className = 'card decision-card';
+  card.id = id;
+  card.innerHTML = `
+    <div class="card-header">
+      <h3>📋 最终投资决策 <span class="badge badge-decision">Final Decision</span></h3>
+    </div>
+    <div class="card-body">
+      ${ratingLabel !== '—' ? `<div class="decision-rating ${ratingClass}">${ratingLabel}</div>` : ''}
+      <div style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(content)}</div>
+    </div>
+  `;
+  $('#main-content').appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/* ========== History ========== */
+function renderHistory(items) {
+  const list = $('#history-list');
+  if (!items || items.length === 0) {
+    list.innerHTML = '<li style="color:var(--text-muted);font-size:.85rem;padding:12px;">暂无记录</li>';
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <li class="history-item" data-id="${item.id}" onclick="selectHistory('${item.id}')">
+      <div>
+        <span class="history-ticker">${escapeHtml(item.ticker)}</span>
+        <span class="history-status ${item.status}">${
+          item.status === 'completed' ? '✅' : item.status === 'running' ? '⏳' : '❌'
+        }</span>
+      </div>
+      <div class="history-meta">${item.trade_date} · ${item.created_at || ''}</div>
+      ${item.decision ? `<div class="history-meta" style="color:var(--accent-green);">${escapeHtml(String(item.decision))}</div>` : ''}
+    </li>
+  `).join('');
+}
+
+async function selectHistory(jobId) {
+  // Highlight
+  $$('.history-item').forEach(el => el.classList.remove('active'));
+  const item = $(`.history-item[data-id="${jobId}"]`);
+  if (item) item.classList.add('active');
+
+  await loadHistoryDetail(jobId);
+}
+
+function renderHistoryResult(data) {
+  if (!data.result) return;
+  const r = data.result;
+
+  // Reset state
+  investDebateCreated = false;
+  riskDebateCreated = false;
+
+  resetUI();
+  setStatus(`历史记录: ${data.ticker} @ ${data.trade_date}`);
+
+  // Render reports
+  const reportMap = {
+    market_report: '市场分析师',
+    sentiment_report: '舆情分析师',
+    news_report: '新闻分析师',
+    fundamentals_report: '基本面分析师',
+    annual_report: '年报分析师',
+    industry_report: '产业链分析师',
+  };
+  for (const [key, label] of Object.entries(reportMap)) {
+    if (r[key]) {
+      addReportCard({ report_key: key, label, content: r[key] });
+    }
+  }
+
+  // Investment debate
+  if (r.investment_debate) {
+    const d = r.investment_debate;
+    if (d.bull_history) addDebateEntry({ phase: 'investment', speaker: 'Bull Researcher', content: d.bull_history });
+    if (d.bear_history) addDebateEntry({ phase: 'investment', speaker: 'Bear Researcher', content: d.bear_history });
+    if (d.judge_decision) addDebateDecision({ phase: 'investment', content: d.judge_decision });
+  }
+
+  // Trader plan
+  if (r.trader_plan) addTraderCard({ content: r.trader_plan });
+
+  // Risk debate
+  if (r.risk_debate) {
+    const d = r.risk_debate;
+    if (d.aggressive_history) addDebateEntry({ phase: 'risk', speaker: 'Aggressive Analyst', content: d.aggressive_history });
+    if (d.conservative_history) addDebateEntry({ phase: 'risk', speaker: 'Conservative Analyst', content: d.conservative_history });
+    if (d.neutral_history) addDebateEntry({ phase: 'risk', speaker: 'Neutral Analyst', content: d.neutral_history });
+    if (d.judge_decision) addDebateDecision({ phase: 'risk', content: d.judge_decision });
+  }
+
+  // Final decision
+  if (r.final_decision) addDecisionCard({ content: r.final_decision });
+
+  // Set timeline all completed for history view
+  $$('.timeline li').forEach(li => li.className = 'completed');
+}
+</script>
+</body>
+</html>
