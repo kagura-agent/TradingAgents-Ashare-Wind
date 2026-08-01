@@ -14,8 +14,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# These two are setuptools build output at the repo root. Anchored, because
+# unanchored they also swallow web/frontend/src/lib/ — real tracked sources.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -222,5 +224,16 @@ __marimo__/
 .env.enterprise
 reports/
 
-# Web UI SQLite database
+# Web UI SQLite database. WAL mode (see web/store.py) writes two sidecar
+# files alongside the database, so match the whole family.
 web/analysis.db
+web/analysis.db-wal
+web/analysis.db-shm
+
+# Web UI frontend: only the source under web/frontend/src is tracked.
+# web/static is the Vite build output — run `npm run build` to populate it.
+# Nothing in it is tracked, not even a placeholder: Vite empties the directory
+# on every build, and web/server.py already degrades to a 503 "run the build"
+# page when index.html is absent.
+web/frontend/node_modules/
+web/static/

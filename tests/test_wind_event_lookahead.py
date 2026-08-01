@@ -16,8 +16,7 @@ Additionally: live/real-time mode (no curr_date) must still work without
 injecting a date cutoff — we must not break real-time analysis to fix backtesting.
 """
 
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import patch
 
 # --- Layer 1: wind.py vendor shim ---
 
@@ -43,8 +42,9 @@ def test_get_insider_transactions_none_when_no_date():
 
 def test_tool_definition_accepts_curr_date():
     """The @tool get_insider_transactions must accept curr_date parameter."""
-    from tradingagents.agents.utils.news_data_tools import get_insider_transactions
     import inspect
+
+    from tradingagents.agents.utils.news_data_tools import get_insider_transactions
 
     sig = inspect.signature(get_insider_transactions.func)
     assert "curr_date" in sig.parameters, (
@@ -77,7 +77,6 @@ def test_event_context_appends_date_suffix():
     from tradingagents.dataflows import wind
 
     captured_queries = []
-    original_wind_nl = wind._wind_nl
 
     def mock_wind_nl(tool_name, question, **kwargs):
         captured_queries.append(question)

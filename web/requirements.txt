@@ -1,5 +1,12 @@
+# Runtime dependencies for the web UI.
+#
+# Mirrors the `web` extra in pyproject.toml — prefer `pip install -e ".[web]"`.
+# This file is kept for deployments that install requirements files instead.
+#
+# There is deliberately no aiosqlite: store.py uses the stdlib sqlite3 driver
+# and the async endpoints hand it to a worker thread, so an async driver would
+# add a dependency without changing behaviour.
 fastapi>=0.115
 uvicorn[standard]>=0.30
 websockets>=13
-aiosqlite>=0.20
 python-dotenv>=1.0

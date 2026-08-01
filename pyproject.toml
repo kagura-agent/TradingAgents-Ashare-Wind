@@ -38,21 +38,37 @@ dev = [
     "ruff>=0.15",
     "pytest>=8.0",
     "pytest-subtests>=0.13",
+    # The web extra plus httpx, so `pytest` exercises tests/test_web_*.py
+    # instead of importorskip-ing past them in CI.
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "websockets>=13",
+    "httpx>=0.27",
 ]
 # Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
 # stays lean: pip install "tradingagents[bedrock]".
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Web UI (FastAPI + WebSocket streaming): pip install "tradingagents[web]".
+# The frontend is built separately with npm — see web/README.md.
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "websockets>=13",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "web*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+# Built by `npm run build` in web/frontend — absent from a fresh clone, which
+# is why the glob is tolerant rather than an explicit file list.
+web = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
