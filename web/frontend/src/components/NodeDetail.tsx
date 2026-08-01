@@ -9,7 +9,6 @@ interface Props {
   slug: string
   label: string
   view: ResultViewModel
-  onBack: () => void
 }
 
 /** Map a node slug to the report key it corresponds to (analyst nodes only). */
@@ -22,19 +21,12 @@ const SLUG_TO_REPORT_KEY: Record<string, string> = {
   'industry-chain-analyst': 'industry_report',
 }
 
-export function NodeDetail({ slug, label, view, onBack }: Props) {
+export function NodeDetail({ slug, label, view }: Props) {
   const content = renderNodeContent(slug, view)
 
   return (
-    <div className="stage-detail">
-      <button type="button" className="stage-detail__back" onClick={onBack}>
-        ← 返回总览
-      </button>
-      <h2 className="stage-detail__title">{label}</h2>
-
-      <div className="stage-detail__content">
-        {content ?? <p className="empty">暂无内容</p>}
-      </div>
+    <div className="node-detail">
+      {content ?? <p className="empty">暂无内容</p>}
     </div>
   )
 }
