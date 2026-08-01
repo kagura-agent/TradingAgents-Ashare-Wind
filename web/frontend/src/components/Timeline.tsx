@@ -11,31 +11,55 @@ const STATUS_TEXT: Record<NodeStatus, string> = {
   done: '已完成',
 }
 
-export function Timeline({ nodes }: { nodes: Record<string, NodeStatus> }) {
+interface TimelineProps {
+  nodes: Record<string, NodeStatus>
+  expandedStages: Set<Stage>
+  onToggleStage: (stage: Stage) => void
+}
+
+export function Timeline({ nodes, expandedStages, onToggleStage }: TimelineProps) {
   return (
     <nav className="timeline" aria-label="执行进度">
-      {STAGES.map((stage) => (
-        <section key={stage}>
-          <h2 className="timeline__stage-label">{STAGE_LABELS[stage]}</h2>
-          <ul className="timeline__list">
-            {TIMELINE_NODES.filter((n) => n.stage === stage).map((node) => {
-              const status = nodes[node.node] ?? 'pending'
-              return (
-                <li
-                  key={node.node}
-                  className="timeline__item"
-                  data-status={status}
-                  data-node={node.node}
-                >
-                  <span className="timeline__dot" aria-hidden="true" />
-                  <span>{node.label}</span>
-                  <span className="visually-hidden">{STATUS_TEXT[status]}</span>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      ))}
+      {STAGES.map((stage) => {
+        const expanded = expandedStages.has(stage)
+        return (
+          <section key={stage} className="timeline__section">
+            <button
+              type="button"
+              className="timeline__stage-label"
+              onClick={() => onToggleStage(stage)}
+              aria-expanded={expanded}
+            >
+              <span
+                className="timeline__chevron"
+                data-open={expanded || undefined}
+                aria-hidden="true"
+              >
+                ▶
+              </span>
+              {STAGE_LABELS[stage]}
+            </button>
+            <ul className="timeline__list">
+              {TIMELINE_NODES.filter((n) => n.stage === stage).map((node) => {
+                const status = nodes[node.node] ?? 'pending'
+                return (
+                  <li
+                    key={node.node}
+                    className="timeline__item"
+                    data-status={status}
+                    data-node={node.node}
+                    onClick={() => onToggleStage(stage)}
+                  >
+                    <span className="timeline__dot" aria-hidden="true" />
+                    <span>{node.label}</span>
+                    <span className="visually-hidden">{STATUS_TEXT[status]}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )
+      })}
     </nav>
   )
 }
