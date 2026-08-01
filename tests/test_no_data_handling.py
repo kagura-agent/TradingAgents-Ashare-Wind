@@ -24,7 +24,7 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
     def setUp(self):
         self._tmp = os.path.join(os.path.dirname(__file__), "_tmp_cache")
         os.makedirs(self._tmp, exist_ok=True)
-        set_config({"data_cache_dir": self._tmp})
+        set_config({"data_cache_dir": self._tmp, "data_vendors": {"core_stock_apis": "yfinance"}})
 
     def tearDown(self):
         for f in os.listdir(self._tmp):
@@ -48,6 +48,9 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
 
 @pytest.mark.unit
 class TestRouteToVendorSentinel(unittest.TestCase):
+    def setUp(self):
+        set_config({"data_vendors": {"core_stock_apis": "yfinance,alpha_vantage"}})
+
     def test_no_data_from_all_vendors_returns_sentinel(self):
         def raises_no_data(symbol, *a, **k):
             raise NoMarketDataError(symbol, "GC=F", "no rows")

@@ -10,7 +10,6 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-
 NON_CHINA_SERVICE_TERMS = (
     "Yahoo",
     "yfinance",

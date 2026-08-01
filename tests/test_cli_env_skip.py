@@ -16,9 +16,9 @@ import pytest
 class TestProviderDefaultUrl(unittest.TestCase):
     def test_known_providers_resolve(self):
         from cli.utils import provider_default_url
-        self.assertEqual(provider_default_url("openai"), "https://api.openai.com/v1")
-        self.assertEqual(provider_default_url("DeepSeek"), "https://api.deepseek.com")
-        self.assertIsNone(provider_default_url("google"))  # uses SDK default
+        self.assertEqual(provider_default_url("deepseek"), "https://api.deepseek.com")
+        self.assertEqual(provider_default_url("minimax"), "https://api.minimaxi.com/v1")
+        self.assertEqual(provider_default_url("qwen"), "https://dashscope.aliyuncs.com/compatible-mode/v1")
 
     def test_unknown_provider_returns_none(self):
         from cli.utils import provider_default_url
@@ -36,18 +36,18 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         import cli.main as m
 
         env = {
-            "TRADINGAGENTS_LLM_PROVIDER": "openai",
-            "TRADINGAGENTS_DEEP_THINK_LLM": "kimi-k2.5",
+            "TRADINGAGENTS_LLM_PROVIDER": "deepseek",
+            "TRADINGAGENTS_DEEP_THINK_LLM": "deepseek-r1",
             "TRADINGAGENTS_QUICK_THINK_LLM": "deepseek-v4-pro",
-            "TRADINGAGENTS_LLM_BACKEND_URL": "https://opencode.ai/zen/go/v1",
+            "TRADINGAGENTS_LLM_BACKEND_URL": "https://api.deepseek.com",
             "TRADINGAGENTS_OUTPUT_LANGUAGE": "Japanese",
         }
         fake_cfg = dict(m.DEFAULT_CONFIG)
         fake_cfg.update({
-            "llm_provider": "openai",
-            "backend_url": "https://opencode.ai/zen/go/v1",
+            "llm_provider": "deepseek",
+            "backend_url": "https://api.deepseek.com",
             "quick_think_llm": "deepseek-v4-pro",
-            "deep_think_llm": "kimi-k2.5",
+            "deep_think_llm": "deepseek-r1",
             "output_language": "Japanese",
         })
 
@@ -55,7 +55,8 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
              mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
              mock.patch.object(m, "fetch_announcements", return_value=None), \
              mock.patch.object(m, "display_announcements"), \
-             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "ensure_wind_api_key"), \
+             mock.patch.object(m, "get_ticker", return_value="600519.SH"), \
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth", return_value=1), \
@@ -75,10 +76,10 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         ensure_key.assert_called_once()
 
         # The env values flow into the returned selections.
-        self.assertEqual(sel["llm_provider"], "openai")
-        self.assertEqual(sel["backend_url"], "https://opencode.ai/zen/go/v1")
+        self.assertEqual(sel["llm_provider"], "deepseek")
+        self.assertEqual(sel["backend_url"], "https://api.deepseek.com")
         self.assertEqual(sel["shallow_thinker"], "deepseek-v4-pro")
-        self.assertEqual(sel["deep_thinker"], "kimi-k2.5")
+        self.assertEqual(sel["deep_thinker"], "deepseek-r1")
         self.assertEqual(sel["output_language"], "Japanese")
 
 
@@ -98,15 +99,16 @@ class TestResearchDepthSkippedFromEnv(unittest.TestCase):
              mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
              mock.patch.object(m, "fetch_announcements", return_value=None), \
              mock.patch.object(m, "display_announcements"), \
-             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "ensure_wind_api_key"), \
+             mock.patch.object(m, "get_ticker", return_value="600519.SH"), \
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth") as prompt_depth, \
              mock.patch.object(m, "ensure_api_key"), \
-             mock.patch.object(m, "select_llm_provider", return_value=("openai", None)), \
-             mock.patch.object(m, "ask_output_language", return_value="English"), \
-             mock.patch.object(m, "select_shallow_thinking_agent", return_value="gpt-5.4-mini"), \
-             mock.patch.object(m, "select_deep_thinking_agent", return_value="gpt-5.5"), \
+             mock.patch.object(m, "select_llm_provider", return_value=("deepseek", None)), \
+             mock.patch.object(m, "ask_output_language", return_value="Chinese"), \
+             mock.patch.object(m, "select_shallow_thinking_agent", return_value="deepseek-v4-pro"), \
+             mock.patch.object(m, "select_deep_thinking_agent", return_value="deepseek-r1"), \
              mock.patch.object(m, "ask_openai_reasoning_effort", return_value=None):
             sel = m.get_user_selections()
 
@@ -128,13 +130,14 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
              mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
              mock.patch.object(m, "fetch_announcements", return_value=None), \
              mock.patch.object(m, "display_announcements"), \
-             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "ensure_wind_api_key"), \
+             mock.patch.object(m, "get_ticker", return_value="600519.SH"), \
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth", return_value=1), \
              mock.patch.object(m, "ensure_api_key"), \
              mock.patch.object(m, "select_llm_provider", return_value=("openai", None)), \
-             mock.patch.object(m, "ask_output_language", return_value="English"), \
+             mock.patch.object(m, "ask_output_language", return_value="Chinese"), \
              mock.patch.object(m, "select_shallow_thinking_agent", return_value="gpt-5.4-mini"), \
              mock.patch.object(m, "select_deep_thinking_agent", return_value="gpt-5.5"), \
              mock.patch.object(m, "ask_openai_reasoning_effort") as prompt_effort:

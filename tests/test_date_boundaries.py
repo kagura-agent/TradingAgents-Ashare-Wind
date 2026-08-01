@@ -41,7 +41,7 @@ def test_get_yfin_requests_inclusive_end(monkeypatch):
 
 @pytest.mark.unit
 def test_load_ohlcv_requests_inclusive_end(monkeypatch, tmp_path):
-    set_config({"data_cache_dir": str(tmp_path)})
+    set_config({"data_cache_dir": str(tmp_path), "data_vendors": {"core_stock_apis": "yfinance"}})
     captured = {}
 
     def fake_download(symbol, start, end, **kwargs):
