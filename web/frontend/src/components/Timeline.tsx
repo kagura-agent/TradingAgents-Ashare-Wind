@@ -20,11 +20,12 @@ const STAGE_ICONS: Record<Stage, string> = {
 
 interface TimelineProps {
   nodes: Record<string, NodeStatus>
+  selectedSlug: string | null
   onSelectNode: (slug: string) => void
   nodeHasContent: (slug: string) => boolean
 }
 
-export function Timeline({ nodes, onSelectNode, nodeHasContent }: TimelineProps) {
+export function Timeline({ nodes, selectedSlug, onSelectNode, nodeHasContent }: TimelineProps) {
   return (
     <nav className="timeline" aria-label="执行进度">
       {STAGES.map((stage) => (
@@ -37,6 +38,7 @@ export function Timeline({ nodes, onSelectNode, nodeHasContent }: TimelineProps)
             {TIMELINE_NODES.filter((n) => n.stage === stage).map((node) => {
               const nodeStatus = nodes[node.node] ?? 'pending'
               const clickable = nodeStatus === 'done' || nodeHasContent(node.slug)
+              const selected = node.slug === selectedSlug
 
               return (
                 <li
@@ -44,18 +46,23 @@ export function Timeline({ nodes, onSelectNode, nodeHasContent }: TimelineProps)
                   className="timeline__item"
                   data-status={nodeStatus}
                   data-clickable={clickable || undefined}
+                  data-selected={selected || undefined}
                   data-node={node.node}
                 >
                   {clickable ? (
                     <button
                       type="button"
                       className="timeline__node-btn"
+                      data-selected={selected || undefined}
                       onClick={() => onSelectNode(node.slug)}
-                      aria-label={`${node.label} — 已完成，点击查看`}
+                      aria-label={`${node.label} — ${selected ? '当前查看' : '点击查看'}`}
                     >
                       <span className="timeline__dot" aria-hidden="true" />
                       <span className="timeline__node-label">{node.label}</span>
-                      <span className="timeline__node-arrow" aria-hidden="true">→</span>
+                      {selected
+                        ? <span className="timeline__node-arrow" aria-hidden="true">●</span>
+                        : <span className="timeline__node-arrow" aria-hidden="true">→</span>
+                      }
                     </button>
                   ) : (
                     <>
