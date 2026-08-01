@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import hashlib
 import time
 from datetime import datetime
@@ -10,18 +9,27 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import pandas as pd
+import requests
 from dateutil.relativedelta import relativedelta
 from stockstats import wrap
 
 from .symbol_utils import NoMarketDataError
 
 
-WIND_SKILL_DIR = Path(
-    os.environ.get(
-        "WIND_MCP_SKILL_DIR",
-        str(Path.home() / ".agents" / "skills" / "wind-mcp-skill"),
-    )
-)
+# Wind MCP server endpoints (JSON-RPC over HTTP)
+WIND_SERVERS = {
+    "stock_data": "https://mcp.wind.com.cn/vserver_stock_data/mcp/",
+    "fund_data": "https://mcp.wind.com.cn/vserver_fund_data/mcp/",
+    "index_data": "https://mcp.wind.com.cn/vserver_index_data/mcp/",
+    "bond_data": "https://mcp.wind.com.cn/vserver_bond_data/mcp/",
+    "financial_docs": "https://mcp.wind.com.cn/vserver_financial_docs/mcp/",
+    "economic_data": "https://mcp.wind.com.cn/vserver_economic_data/mcp/",
+    "analytics_data": "https://mcp.wind.com.cn/vserver_analytics_data/mcp/",
+}
+
+# Client version reported to Wind MCP during initialize handshake
+_CLIENT_VERSION = "0.1.0"
+_CLIENT_NAME = "tradingagents-python"
 
 WIND_INDEX_CODES = {
     "000001.SH",  # 上证指数
@@ -183,10 +191,120 @@ def _log_wind_call(
         pass
 
 
-def _call_wind(server_type: str, tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
-    if not WIND_SKILL_DIR.exists():
-        raise RuntimeError(f"Wind skill directory not found: {WIND_SKILL_DIR}")
+def _get_wind_api_key() -> str:
+    """Resolve Wind API key from config files or environment.
 
+    Search order: project config.json → global config → env var.
+    """
+    # Project-level config.json (relative to cwd)
+    project_config = Path.cwd() / ".agents" / "skills" / "wind-mcp-skill" / "config.json"
+    if project_config.exists():
+        try:
+            cfg = json.loads(project_config.read_text(encoding="utf-8"))
+            key = cfg.get("wind_api_key", "").strip()
+            if key:
+                return key
+        except Exception:
+            pass
+
+    # Global config
+    global_config = Path.home() / ".wind-aifinmarket" / "config"
+    if global_config.exists():
+        try:
+            for line in global_config.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line.startswith("#") or not line:
+                    continue
+                if line.startswith("export "):
+                    line = line[7:].strip()
+                if line.startswith("WIND_API_KEY="):
+                    val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    if val:
+                        return val
+        except Exception:
+            pass
+
+    # Global skill config.json
+    global_skill_config = Path.home() / ".agents" / "skills" / "wind-mcp-skill" / "config.json"
+    if global_skill_config.exists():
+        try:
+            cfg = json.loads(global_skill_config.read_text(encoding="utf-8"))
+            key = cfg.get("wind_api_key", "").strip()
+            if key:
+                return key
+        except Exception:
+            pass
+
+    # Environment variable
+    env_key = os.environ.get("WIND_API_KEY", "").strip()
+    if env_key:
+        return env_key
+
+    raise RuntimeError(
+        "WIND_API_KEY not configured. Set it in .agents/skills/wind-mcp-skill/config.json, "
+        "~/.wind-aifinmarket/config, or the WIND_API_KEY environment variable."
+    )
+
+
+def _parse_sse_response(text: str) -> dict:
+    """Parse Wind MCP response which may be SSE or plain JSON."""
+    text = text.strip()
+    if text.startswith("{"):
+        return json.loads(text)
+    # SSE format: find the last "data: " line
+    last_data = None
+    for line in text.split("\n"):
+        if line.startswith("data: "):
+            last_data = line[6:]
+    if last_data:
+        return json.loads(last_data)
+    raise RuntimeError(f"Wind MCP response format unrecognized. First 200 chars: {text[:200]}")
+
+
+def _wind_mcp_request(
+    server_type: str,
+    method: str,
+    params: dict[str, Any],
+    timeout: int = 60,
+) -> dict[str, Any]:
+    """Send a JSON-RPC request to a Wind MCP server."""
+    endpoint = WIND_SERVERS.get(server_type)
+    if not endpoint:
+        raise RuntimeError(f"Unknown Wind server_type: {server_type}. Available: {list(WIND_SERVERS)}")
+
+    api_key = _get_wind_api_key()
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "jsonrpc": "2.0",
+        "id": int(time.time() * 1000),
+        "method": method,
+        "params": params,
+    }
+
+    resp = requests.post(endpoint, json=body, headers=headers, timeout=timeout)
+    if not resp.ok:
+        raise RuntimeError(
+            f"Wind MCP HTTP {resp.status_code} for {server_type}.{method}: {resp.text[:300]}"
+        )
+
+    payload = _parse_sse_response(resp.text)
+
+    if payload.get("error"):
+        msg = payload["error"].get("message") or json.dumps(payload["error"])
+        raise RuntimeError(f"Wind MCP error for {server_type}.{method}: {msg}")
+
+    return payload.get("result", {})
+
+
+def _call_wind(server_type: str, tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
+    """Call a Wind MCP tool via direct HTTP (no Node.js dependency).
+
+    Handles caching, error caching, and call logging.
+    """
     cache_key = _wind_cache_key(server_type, tool_name, params)
     cached = _read_wind_cache(cache_key)
     if cached is not None:
@@ -197,45 +315,44 @@ def _call_wind(server_type: str, tool_name: str, params: dict[str, Any]) -> dict
         _log_wind_call(server_type, tool_name, params, cache_hit=True, ok=False, error=cached_error)
         raise RuntimeError(cached_error)
 
-    proc = subprocess.run(
-        [
-            "node",
-            "scripts/cli.mjs",
-            "call",
-            server_type,
-            tool_name,
-            json.dumps(params, ensure_ascii=False),
-        ],
-        cwd=str(WIND_SKILL_DIR),
-        env=os.environ.copy(),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=60,
-    )
-    if proc.returncode != 0:
-        detail = (proc.stdout or proc.stderr).strip()
-        _write_wind_error_cache(cache_key, f"Wind CLI failed for {server_type}.{tool_name}: {detail}")
+    try:
+        # MCP protocol: initialize handshake then tools/call
+        _wind_mcp_request(server_type, "initialize", {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {"name": _CLIENT_NAME, "version": _CLIENT_VERSION},
+        }, timeout=30)
+
+        result = _wind_mcp_request(server_type, "tools/call", {
+            "name": tool_name,
+            "arguments": params,
+            "_meta": {"clientVersion": _CLIENT_VERSION},
+        }, timeout=600)
+    except Exception as exc:
+        detail = str(exc)
+        _write_wind_error_cache(cache_key, detail)
         _log_wind_call(server_type, tool_name, params, cache_hit=False, ok=False, error=detail)
-        raise RuntimeError(f"Wind CLI failed for {server_type}.{tool_name}: {detail}")
+        raise RuntimeError(detail) from exc
 
-    outer = json.loads(proc.stdout)
-    if outer.get("isError"):
-        _write_wind_error_cache(cache_key, f"Wind MCP error for {server_type}.{tool_name}: {outer}")
-        _log_wind_call(server_type, tool_name, params, cache_hit=False, ok=False, error=str(outer))
-        raise RuntimeError(f"Wind MCP error for {server_type}.{tool_name}: {outer}")
+    # Extract result: result.content[0].text → JSON → data
+    if result.get("isError"):
+        detail = f"Wind MCP error for {server_type}.{tool_name}: {result}"
+        _write_wind_error_cache(cache_key, detail)
+        _log_wind_call(server_type, tool_name, params, cache_hit=False, ok=False, error=detail)
+        raise RuntimeError(detail)
 
-    content = outer.get("content") or []
+    content = result.get("content") or []
     if not content:
         raise RuntimeError(f"Wind MCP returned no content for {server_type}.{tool_name}")
 
     text = content[0].get("text", "")
     inner = json.loads(text)
     if inner.get("error"):
-        _write_wind_error_cache(cache_key, f"Wind backend error for {server_type}.{tool_name}: {inner['error']}")
+        detail = f"Wind backend error for {server_type}.{tool_name}: {inner['error']}"
+        _write_wind_error_cache(cache_key, detail)
         _log_wind_call(server_type, tool_name, params, cache_hit=False, ok=False, error=str(inner["error"]))
-        raise RuntimeError(f"Wind backend error for {server_type}.{tool_name}: {inner['error']}")
+        raise RuntimeError(detail)
+
     data = inner.get("data") or {}
     _write_wind_cache(cache_key, data)
     _log_wind_call(server_type, tool_name, params, cache_hit=False, ok=True)
