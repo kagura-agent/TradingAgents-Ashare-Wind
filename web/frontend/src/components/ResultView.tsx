@@ -10,23 +10,41 @@ import { ReportCard } from './ReportCard'
 interface Props {
   view: ResultViewModel
   expandedStages: Set<Stage>
+  onToggleStage: (stage: Stage) => void
 }
 
 function CollapseWrap({
+  stage,
+  title,
   expanded,
+  onToggle,
   children,
 }: {
+  stage: Stage
+  title: string
   expanded: boolean
+  onToggle: (stage: Stage) => void
   children: React.ReactNode
 }) {
   return (
-    <div className="stage-collapse" data-expanded={expanded}>
-      <div className="stage-collapse__inner">{children}</div>
-    </div>
+    <section className="stage-section" id={`stage-${stage}`}>
+      <button
+        type="button"
+        className="stage-section__header"
+        onClick={() => onToggle(stage)}
+        aria-expanded={expanded}
+      >
+        <span className="stage-section__chevron" data-open={expanded || undefined} aria-hidden="true">▶</span>
+        <h3 className="stage-section__title">{title}</h3>
+      </button>
+      <div className="stage-collapse" data-expanded={expanded}>
+        <div className="stage-collapse__inner">{children}</div>
+      </div>
+    </section>
   )
 }
 
-export function ResultView({ view, expandedStages }: Props) {
+export function ResultView({ view, expandedStages, onToggleStage }: Props) {
   const hasAnalysis = view.reports.length > 0
   const hasResearch = view.investmentDebate.length > 0 || view.investmentJudge !== null
   const hasTrading = view.traderPlan !== null
@@ -36,7 +54,7 @@ export function ResultView({ view, expandedStages }: Props) {
   return (
     <div className="result-view">
       {hasAnalysis && (
-        <CollapseWrap expanded={expandedStages.has('analysis')}>
+        <CollapseWrap stage="analysis" title="📊 分析师团队" expanded={expandedStages.has('analysis')} onToggle={onToggleStage}>
           {view.reports.map((report) => (
             <ReportCard
               key={report.key}
@@ -49,7 +67,7 @@ export function ResultView({ view, expandedStages }: Props) {
       )}
 
       {hasResearch && (
-        <CollapseWrap expanded={expandedStages.has('research')}>
+        <CollapseWrap stage="research" title="⚔️ 投资辩论" expanded={expandedStages.has('research')} onToggle={onToggleStage}>
           <DebatePanel
             title="投资辩论"
             entries={view.investmentDebate}
@@ -60,7 +78,7 @@ export function ResultView({ view, expandedStages }: Props) {
       )}
 
       {hasTrading && (
-        <CollapseWrap expanded={expandedStages.has('trading')}>
+        <CollapseWrap stage="trading" title="💹 交易计划" expanded={expandedStages.has('trading')} onToggle={onToggleStage}>
           <article className="card" data-testid="trader-plan">
             <header className="card__header">
               <h3 className="card__title">交易计划</h3>
@@ -74,7 +92,7 @@ export function ResultView({ view, expandedStages }: Props) {
       )}
 
       {hasRisk && (
-        <CollapseWrap expanded={expandedStages.has('risk')}>
+        <CollapseWrap stage="risk" title="🛡️ 风控与决策" expanded={expandedStages.has('risk')} onToggle={onToggleStage}>
           <DebatePanel
             title="风控辩论"
             entries={view.riskDebate}

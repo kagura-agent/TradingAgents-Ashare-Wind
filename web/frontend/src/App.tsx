@@ -46,6 +46,11 @@ export default function App() {
       else next.add(stage)
       return next
     })
+    // Scroll to the stage section in the main content area
+    setTimeout(() => {
+      const el = document.getElementById(`stage-${stage}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
   }, [])
 
   // Auto-expand the stage of any currently-running node.
@@ -173,7 +178,7 @@ export default function App() {
           )}
 
           {hasContent ? (
-            <ResultView view={view} expandedStages={expandedStages} />
+            <ResultView view={view} expandedStages={expandedStages} onToggleStage={toggleStage} />
           ) : (
             <p className="empty">
               输入股票代码与交易日期，点击「开始分析」；分析过程会实时显示在这里。
