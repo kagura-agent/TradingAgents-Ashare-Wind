@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ConnectionBadge } from './components/ConnectionBadge'
 import { HistoryList } from './components/HistoryList'
-import { ResultView } from './components/ResultView'
 import { RunControls } from './components/RunControls'
+import { StageDetail } from './components/StageDetail'
 import { Timeline } from './components/Timeline'
 import { useAnalysisStream } from './hooks/useAnalysisStream'
 import { TIMELINE_NODES, type Stage } from './lib/nodes'
@@ -16,6 +16,47 @@ import {
 import { EMPTY_VIEW, viewFromHistory, viewFromState, type ResultView as View } from './lib/view'
 import './styles/app.css'
 
+// --- Hash routing helpers ---
+interface Route {
+  jobId: string | null
+  stage: Stage | null
+}
+
+const VALID_STAGES = new Set<Stage>(['analysis', 'research', 'trading', 'risk'])
+
+function parseHash(): Route {
+  const hash = window.location.hash.replace(/^#\/?/, '')
+  if (!hash) return { jobId: null, stage: null }
+  const parts = hash.split('/')
+  const jobId = parts[0] || null
+  const stage = VALID_STAGES.has(parts[1] as Stage) ? (parts[1] as Stage) : null
+  return { jobId, stage }
+}
+
+function setHash(jobId: string | null, stage: Stage | null) {
+  if (!jobId) {
+    window.location.hash = ''
+  } else if (!stage) {
+    window.location.hash = `#/${jobId}`
+  } else {
+    window.location.hash = `#/${jobId}/${stage}`
+  }
+}
+
+// --- Check if a stage has any content ---
+function stageHasContent(stage: Stage, view: View): boolean {
+  switch (stage) {
+    case 'analysis':
+      return view.reports.length > 0
+    case 'research':
+      return view.investmentDebate.length > 0 || view.investmentJudge !== null
+    case 'trading':
+      return view.traderPlan !== null
+    case 'risk':
+      return view.riskDebate.length > 0 || view.riskJudge !== null || view.decision !== null
+  }
+}
+
 export default function App() {
   const { state, connection, watch, reset, markStarting } = useAnalysisStream()
   const [history, setHistory] = useState<HistoryRow[]>([])
@@ -23,7 +64,7 @@ export default function App() {
   const [archived, setArchived] = useState<View | null>(null)
   const [demo, setDemo] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [expandedStages, setExpandedStages] = useState<Set<Stage>>(new Set())
+  const [route, setRoute] = useState<Route>(parseHash)
 
   const refreshHistory = useCallback(() => {
     fetchHistory().then(setHistory).catch(() => undefined)
@@ -34,72 +75,44 @@ export default function App() {
     fetchMeta().then((meta) => setDemo(meta.demo)).catch(() => undefined)
   }, [refreshHistory])
 
+  // Listen for hash changes (browser back/forward)
+  useEffect(() => {
+    const onHashChange = () => setRoute(parseHash())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
   // A finished run belongs in the history list straight away.
   useEffect(() => {
     if (state.runStatus === 'completed' || state.runStatus === 'failed') refreshHistory()
   }, [state.runStatus, refreshHistory])
 
-  const toggleStage = useCallback((stage: Stage) => {
-    setExpandedStages((prev) => {
-      const next = new Set(prev)
-      if (next.has(stage)) next.delete(stage)
-      else next.add(stage)
-      return next
-    })
-    // Scroll to the stage section in the main content area
-    setTimeout(() => {
-      const el = document.getElementById(`stage-${stage}`)
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
-  }, [])
+  // Navigate to a stage detail page
+  const navigateToStage = useCallback((stage: Stage) => {
+    const jobId = selectedId
+    if (!jobId) return
+    setHash(jobId, stage)
+  }, [selectedId])
 
-  // Auto-expand the stage of any currently-running node.
-  useEffect(() => {
-    if (archived) return
-    const running = Object.entries(state.nodes).filter(([, s]) => s === 'running')
-    if (running.length === 0) return
-    setExpandedStages((prev) => {
-      const next = new Set(prev)
-      let changed = false
-      for (const [node] of running) {
-        const tn = TIMELINE_NODES.find((t) => t.node === node)
-        if (tn && !next.has(tn.stage)) {
-          next.add(tn.stage)
-          changed = true
-        }
-      }
-      return changed ? next : prev
-    })
-  }, [state.nodes, archived])
-
-  // Auto-expand risk stage on completion (final decision).
-  useEffect(() => {
-    if (archived) return
-    if (state.runStatus === 'completed') {
-      setExpandedStages((prev) => {
-        if (prev.has('risk')) return prev
-        return new Set(prev).add('risk')
-      })
+  // Navigate back to overview
+  const navigateToOverview = useCallback(() => {
+    if (selectedId) {
+      setHash(selectedId, null)
+    } else {
+      setHash(null, null)
     }
-  }, [state.runStatus, archived])
-
-  // Expand all stages when viewing archived results.
-  useEffect(() => {
-    if (archived) {
-      setExpandedStages(new Set<Stage>(['analysis', 'research', 'trading', 'risk']))
-    }
-  }, [archived])
+  }, [selectedId])
 
   const handleStart = useCallback(
     async (ticker: string, date: string) => {
       setError(null)
       setArchived(null)
-      setExpandedStages(new Set())
       reset()
       markStarting()
       try {
         const { job_id } = await startAnalysis(ticker, date)
         setSelectedId(job_id)
+        setHash(job_id, null)
         watch(job_id)
         refreshHistory()
       } catch (err) {
@@ -114,10 +127,9 @@ export default function App() {
     async (row: HistoryRow) => {
       setError(null)
       setSelectedId(row.id)
+      setHash(row.id, null)
       if (row.status === 'running') {
-        // Still live: rejoin the stream and let replay rebuild the view.
         setArchived(null)
-        setExpandedStages(new Set())
         reset()
         watch(row.id)
         return
@@ -136,12 +148,9 @@ export default function App() {
   const liveView = useMemo(() => viewFromState(state), [state])
   const view = archived ?? liveView
   const busy = state.runStatus === 'starting' || state.runStatus === 'running'
-  const hasContent =
-    view.reports.length > 0 ||
-    view.investmentDebate.length > 0 ||
-    view.riskDebate.length > 0 ||
-    view.traderPlan !== null ||
-    view.decision !== null
+
+  // Are we viewing a stage detail page?
+  const activeStage = route.stage
 
   return (
     <div className="app">
@@ -160,37 +169,49 @@ export default function App() {
         <ConnectionBadge state={connection} />
       </header>
 
-      <div className="app__body">
-        <aside className="app__column app__column--timeline">
-          <Timeline
-            nodes={archived ? {} : state.nodes}
-            expandedStages={expandedStages}
-            onToggleStage={toggleStage}
+      {activeStage ? (
+        /* ---- Stage detail page: full width, no columns ---- */
+        <div className="app__stage-detail">
+          <StageDetail
+            stage={activeStage}
+            view={view}
+            onBack={navigateToOverview}
           />
-        </aside>
+        </div>
+      ) : (
+        /* ---- Overview page: three columns ---- */
+        <div className="app__body">
+          <aside className="app__column app__column--timeline">
+            <Timeline
+              nodes={archived ? {} : state.nodes}
+              onSelectStage={navigateToStage}
+              stageHasContent={(s: Stage) => stageHasContent(s, view)}
+            />
+          </aside>
 
-        <main className="app__column app__column--main">
-          {error && <div className="alert">{error}</div>}
-          {state.error && <div className="alert">{state.error}</div>}
+          <main className="app__column app__column--main">
+            {error && <div className="alert">{error}</div>}
+            {state.error && <div className="alert">{state.error}</div>}
 
-          {!archived && state.statusMessage && (
-            <p className="status-line">{state.statusMessage}</p>
-          )}
+            {!archived && state.statusMessage && (
+              <p className="status-line">{state.statusMessage}</p>
+            )}
 
-          {hasContent ? (
-            <ResultView view={view} expandedStages={expandedStages} onToggleStage={toggleStage} />
-          ) : (
             <p className="empty">
-              输入股票代码与交易日期，点击「开始分析」；分析过程会实时显示在这里。
+              {busy
+                ? '分析进行中…点击左侧已完成的阶段查看详情'
+                : selectedId
+                  ? '分析已完成。点击左侧阶段查看各步骤详细报告。'
+                  : '输入股票代码与交易日期，点击「开始分析」。'}
             </p>
-          )}
-        </main>
+          </main>
 
-        <aside className="app__column app__column--history">
-          <h2 className="section-heading">历史记录</h2>
-          <HistoryList rows={history} selectedId={selectedId} onSelect={handleSelectHistory} />
-        </aside>
-      </div>
+          <aside className="app__column app__column--history">
+            <h2 className="section-heading">历史记录</h2>
+            <HistoryList rows={history} selectedId={selectedId} onSelect={handleSelectHistory} />
+          </aside>
+        </div>
+      )}
     </div>
   )
 }
