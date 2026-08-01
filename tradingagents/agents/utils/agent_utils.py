@@ -95,7 +95,9 @@ def _parse_wind_basicinfo(text: str, ticker: str) -> dict[str, str]:
         for row in table.get("rows", []):
             if not isinstance(row, list):
                 continue
-            values = dict(zip(columns, row))
+            # strict=False: a short row is padded out rather than raising —
+            # partial Wind payloads should degrade, not abort the lookup.
+            values = dict(zip(columns, row, strict=False))
             wind_code = _clean_identity_value(values.get("Wind代码"))
             if wind_code and wind_code.upper() != ticker.upper():
                 continue

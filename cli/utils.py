@@ -40,9 +40,7 @@ def is_valid_ticker_input(value: str) -> bool:
         return False
     # A-share Wind codes must be six digits plus an exchange suffix. Catch
     # common missing-leading-zero typos such as 02463.SZ before Wind crashes.
-    if re.fullmatch(r"\d{1,5}\.(SH|SZ|BJ)", v.upper()):
-        return False
-    return True
+    return not re.fullmatch(r"\d{1,5}\.(SH|SZ|BJ)", v.upper())
 
 
 def ticker_validation_message(value: str) -> str:
