@@ -36,7 +36,7 @@ def create_sentiment_analyst(llm):
 
         news_block = get_news.func(ticker, start_date, end_date)
         market_block = get_global_news.func(end_date, 7, 10)
-        events_block = get_insider_transactions.func(ticker)
+        events_block = get_insider_transactions.func(ticker, end_date)
         earnings_block = get_earnings_preannouncements.func(ticker, end_date, 180)
 
         system_message = _build_system_message(

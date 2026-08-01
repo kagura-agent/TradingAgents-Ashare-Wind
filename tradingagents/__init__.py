@@ -1,5 +1,14 @@
 import contextlib
+import sys
 import warnings
+
+# Pin stdout/stderr to UTF-8 so Chinese output doesn't crash on Windows
+# (default cp936 cannot encode many characters). errors="replace" ensures
+# a single un-encodable char degrades to '?' instead of aborting the run.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Load .env files at package import so DEFAULT_CONFIG's env-var overlay
 # (and every llm_clients consumer) sees the user's keys regardless of

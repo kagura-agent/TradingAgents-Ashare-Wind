@@ -972,8 +972,8 @@ def get_global_news(curr_date: str, look_back_days: int = 7, limit: int = 10) ->
     return "\n\n".join(parts)
 
 
-def get_insider_transactions(symbol: str) -> str:
-    return get_ashare_event_context(symbol)
+def get_insider_transactions(symbol: str, curr_date: str | None = None) -> str:
+    return get_ashare_event_context(symbol, curr_date=curr_date)
 
 
 def get_macro_data(indicator: str, curr_date: str, look_back_days: int = 90) -> str:
