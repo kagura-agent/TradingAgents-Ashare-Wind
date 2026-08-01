@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import queue
 import json
 import logging
 import os
@@ -95,7 +96,7 @@ def _register_job(job_id: str, ticker: str, trade_date: str) -> None:
             "trade_date": trade_date,
             "status": "running",
             "events": [],       # ordered list of event dicts
-            "subscribers": [],  # list of asyncio.Queue
+            "subscribers": [],  # list of queue.Queue (thread-safe)
         }
 
 
@@ -118,7 +119,7 @@ def _subscribe(job_id: str) -> asyncio.Queue | None:
         job = _jobs.get(job_id)
         if not job:
             return None
-        q: asyncio.Queue = asyncio.Queue(maxsize=256)
+        q: queue.Queue = queue.Queue(maxsize=256)
         # Replay past events so late-joiners see history
         for ev in job["events"]:
             q.put_nowait(ev)
@@ -574,12 +575,11 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
     try:
         while True:
             try:
-                event = await asyncio.wait_for(q.get(), timeout=30.0)
+                event = await asyncio.get_event_loop().run_in_executor(None, lambda: q.get(timeout=5))
                 await websocket.send_json(event)
                 if event.get("type") in ("complete", "error"):
                     break
-            except asyncio.TimeoutError:
-                # Send keepalive ping
+            except Exception:
                 await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:
         pass
