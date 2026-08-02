@@ -84,4 +84,54 @@ describe('Timeline', () => {
 
     expect(item('Market Analyst')).not.toHaveAttribute('data-selected')
   })
+
+  it('labels each stage with how it is wired', () => {
+    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+
+    expect(screen.getByText('并行')).toBeInTheDocument()
+    expect(screen.getByText('多空往返辩论')).toBeInTheDocument()
+    expect(screen.getByText('三方轮转')).toBeInTheDocument()
+  })
+
+  it('separates the judges from the participants they rule on', () => {
+    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+
+    expect(item('Research Manager')).toHaveAttribute('data-role', 'judge')
+    expect(item('Portfolio Manager')).toHaveAttribute('data-role', 'judge')
+    expect(item('Bull Researcher')).toHaveAttribute('data-role', 'participant')
+    // Each judge sits in its own list so it can be drawn a level above.
+    expect(document.querySelectorAll('[data-role="judge"].timeline__list')).toHaveLength(2)
+  })
+
+  it('marks the cyclic stages so their loop can be drawn', () => {
+    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+
+    const shapes = [...document.querySelectorAll('.timeline__list[data-role="participant"]')]
+      .map((el) => el.getAttribute('data-shape'))
+
+    expect(shapes).toEqual(['parallel', 'debate', 'linear', 'round-robin'])
+  })
+
+  it('reports rounds and per-speaker turns from a live run', () => {
+    const turns = { 'Bull Researcher': 2, 'Bear Researcher': 2, 'Aggressive Analyst': 1 }
+    render(
+      <Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} turns={turns} />,
+    )
+
+    expect(screen.getByText('已辩论 2 轮')).toBeInTheDocument()
+    expect(screen.getByText('已轮转 1 轮')).toBeInTheDocument()
+    expect(item('Bull Researcher')).toHaveTextContent('×2')
+    // One turn is not worth a badge.
+    expect(item('Aggressive Analyst')).not.toHaveTextContent('×')
+  })
+
+  it('reports no rounds for an archived run, whose turns cannot be counted', () => {
+    // A stored run collapses each speaker's whole history into one entry, so
+    // App passes no turns rather than a count that would understate the run.
+    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+
+    expect(screen.queryByText(/已辩论/)).toBeNull()
+    expect(screen.queryByText(/已轮转/)).toBeNull()
+    expect(item('Bull Researcher')).not.toHaveTextContent('×')
+  })
 })

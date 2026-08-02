@@ -365,7 +365,7 @@ body {
   animation: progress-slide 2.5s ease-in-out infinite;
 }
 
-.timeline__item[data-status='running'] > span:not(.timeline__dot):not(.visually-hidden) {
+.timeline__item[data-status='running'] > span:not(.timeline__dot):not(.visually-hidden):not(.timeline__turn-badge) {
   animation: text-breathe 2s ease-in-out infinite;
 }
 
@@ -414,6 +414,137 @@ body {
   50% { opacity: 0.6; }
 }
 
+/* ------------------------------------------------- timeline graph topology */
+
+/* The sidebar reads as a 14-step queue unless the stages show their real
+   wiring. Three shapes carry that: a fan-out rail for the analysts, who share
+   no data and only run in sequence as an implementation choice; a loop rail
+   for the two debates, which really do cycle until a turn counter releases
+   them; and a converge stub down to each judge, which the loop exits *to*
+   rather than passing through. See lib/nodes.ts for where the shapes come
+   from. */
+
+.timeline__stage-hint {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.timeline__turn-badge {
+  flex: none;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+/* -- participant rails -- */
+
+.timeline__list[data-role='participant']:not([data-shape='linear']) {
+  --rail-x: 5px;
+  --rail-gutter: 15px;
+  position: relative;
+}
+
+/* The rail itself, stopping short of the first and last row so it reads as a
+   bracket around the group rather than a line running through it. */
+.timeline__list[data-role='participant']:not([data-shape='linear'])::before {
+  content: '';
+  position: absolute;
+  left: var(--rail-x);
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+/* Each row reserves the gutter and draws its own tick *inside* its own box.
+   Drawing it outside would be clipped: a running row sets `overflow: hidden`
+   so its progress bar follows the rounded corner. */
+.timeline__list[data-role='participant']:not([data-shape='linear']) .timeline__item {
+  position: relative;
+  padding-left: calc(var(--space-3) + var(--rail-gutter));
+}
+
+.timeline__list[data-role='participant']:not([data-shape='linear']) .timeline__item[data-clickable] {
+  padding: 0 0 0 var(--rail-gutter);
+}
+
+.timeline__list[data-role='participant']:not([data-shape='linear']) .timeline__item::before {
+  content: '';
+  position: absolute;
+  left: var(--rail-x);
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+/* A cyclic stage gets a loop glyph sitting on its rail. Cheaper and steadier
+   than drawing a real return edge, and it survives any row height. */
+.timeline__list[data-role='participant'][data-shape='debate']::after,
+.timeline__list[data-role='participant'][data-shape='round-robin']::after {
+  content: '↻';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 0;
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* -- judges -- */
+
+.timeline__list[data-role='judge'] {
+  position: relative;
+  margin-top: var(--space-1);
+  padding-left: var(--space-2);
+}
+
+/* The stub joining the participant rail above to the judge below. */
+.timeline__list[data-role='judge']::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: -6px;
+  width: 1px;
+  height: 10px;
+  background: var(--border-strong);
+}
+
+.timeline__list[data-role='judge'] .timeline__item {
+  font-weight: 500;
+}
+
+@media (max-width: 860px) {
+  /* The timeline is a horizontal strip here (see the layout block above), so
+     every vertical rail would run across the rows instead of beside them. The
+     stage chips still carry the shape in words. */
+  .timeline__list[data-role='participant']:not([data-shape='linear'])::before,
+  .timeline__list[data-role='participant']:not([data-shape='linear'])::after,
+  .timeline__list[data-role='participant']:not([data-shape='linear']) .timeline__item::before,
+  .timeline__list[data-role='judge']::before {
+    display: none;
+  }
+  .timeline__list[data-role='participant']:not([data-shape='linear']) .timeline__item {
+    padding-left: var(--space-3);
+  }
+  .timeline__list[data-role='participant']:not([data-shape='linear']) .timeline__item[data-clickable] {
+    padding: 0;
+  }
+  .timeline__list[data-role='judge'] {
+    padding-left: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .timeline__item[data-status='running'] .timeline__dot {
     animation: none;
@@ -421,7 +552,7 @@ body {
   .timeline__item[data-status='running']::after {
     animation: none;
   }
-  .timeline__item[data-status='running'] > span:not(.timeline__dot):not(.visually-hidden) {
+  .timeline__item[data-status='running'] > span:not(.timeline__dot):not(.visually-hidden):not(.timeline__turn-badge) {
     animation: none;
   }
   .timeline__chevron {

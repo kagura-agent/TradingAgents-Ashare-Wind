@@ -5,7 +5,7 @@ import { NodeDetail, nodeHasContent } from './components/NodeDetail'
 import { RunControls } from './components/RunControls'
 import { Timeline } from './components/Timeline'
 import { useAnalysisStream } from './hooks/useAnalysisStream'
-import { TIMELINE_NODES, VALID_SLUGS } from './lib/nodes'
+import { TIMELINE_NODES, VALID_SLUGS, countTurns } from './lib/nodes'
 import {
   fetchHistory,
   fetchHistoryDetail,
@@ -140,6 +140,14 @@ export default function App() {
   const view = archived ?? liveView
   const busy = state.runStatus === 'starting' || state.runStatus === 'running'
 
+  // Debate turns come from the live event stream only. A stored run keeps whole
+  // histories rather than per-turn slices (see `viewFromHistory`), so counting
+  // an archived run would report one round however many actually ran.
+  const turns = useMemo(
+    () => countTurns([...state.investmentDebate, ...state.riskDebate]),
+    [state.investmentDebate, state.riskDebate],
+  )
+
   const hasAnyContent = view.reports.length > 0
     || view.investmentDebate.length > 0
     || view.investmentJudge !== null
@@ -175,6 +183,7 @@ export default function App() {
             selectedSlug={selectedSlug}
             onSelectNode={handleSelectNode}
             nodeHasContent={(slug: string) => nodeHasContent(slug, view)}
+            turns={archived ? undefined : turns}
           />
         </aside>
 
