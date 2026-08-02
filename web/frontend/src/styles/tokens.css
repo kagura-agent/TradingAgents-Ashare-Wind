@@ -49,6 +49,18 @@
   --radius: 10px;
   --radius-lg: 14px;
 
+  /* Pixel avatars in the office view. Skin and the two utility shades are not
+     semantic colours — no market meaning attaches to them — so they are named
+     for what they paint. Hair and clothes are tinted per role instead, from a
+     single `--role-hue`, which is why only their saturation and lightness live
+     here: one number per role in lib/roleLook.ts beats a colour pair per theme.
+     A role whose colour *does* carry meaning overrides clothes with its tone. */
+  --pixel-skin: #e6b48c;
+  --pixel-dark: #2c313a;
+  --pixel-light: #f4f6f9;
+  --pixel-body-sl: 38% 46%;
+  --pixel-hair-sl: 30% 22%;
+
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
   --shadow: 0 4px 16px rgba(16, 24, 40, 0.08);
 
@@ -87,6 +99,16 @@
     --bearish-soft: rgba(53, 185, 122, 0.16);
     --danger: #ff7a6b;
     --danger-soft: rgba(255, 122, 107, 0.16);
+
+    --pixel-skin: #cf9b74;
+    /* Lighter than the floor it stands on, not darker: `--pixel-dark` outlines
+       the props and paints the shoes, and a near-black on `--bg-sunken` erases
+       both. In a dark theme the outline has to come up to meet the background. */
+    --pixel-dark: #3d4653;
+    --pixel-light: #cdd4de;
+    /* Lifted off the dark background, where 22% lightness is a silhouette. */
+    --pixel-body-sl: 44% 56%;
+    --pixel-hair-sl: 26% 30%;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 6px 20px rgba(0, 0, 0, 0.45);

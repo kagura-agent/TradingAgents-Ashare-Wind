@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ConnectionBadge } from './components/ConnectionBadge'
+import { Floorplan } from './components/Floorplan'
 import { HistoryList } from './components/HistoryList'
-import { NodeDetail, nodeHasContent } from './components/NodeDetail'
+import { NodeDetail } from './components/NodeDetail'
+import { Office } from './components/Office'
 import { RunControls } from './components/RunControls'
 import { Timeline } from './components/Timeline'
 import { useAnalysisStream } from './hooks/useAnalysisStream'
-import { TIMELINE_NODES, VALID_SLUGS } from './lib/nodes'
+import { nodeHasContent } from './lib/nodeContent'
+import { OFFICE_LABEL, STAGE_LABELS, countTurns, nodeBySlug, type Stage } from './lib/nodes'
+import { hashFor, parseHash, type Selection } from './lib/route'
 import {
   fetchHistory,
   fetchHistoryDetail,
@@ -16,32 +20,16 @@ import {
 import { EMPTY_VIEW, viewFromHistory, viewFromState, type ResultView as View } from './lib/view'
 import './styles/app.css'
 
-// --- URL sync helpers (no page navigation, just update address bar) ---
-function parseHash(): { jobId: string | null; nodeSlug: string | null } {
-  const hash = window.location.hash.replace(/^#\/?/, '')
-  if (!hash) return { jobId: null, nodeSlug: null }
-  const parts = hash.split('/')
-  const jobId = parts[0] || null
-  const nodeSlug = parts[1] && VALID_SLUGS.has(parts[1]) ? parts[1] : null
-  return { jobId, nodeSlug }
-}
-
-function updateHash(jobId: string | null, nodeSlug: string | null) {
-  const newHash = !jobId ? '' : nodeSlug ? `#/${jobId}/${nodeSlug}` : `#/${jobId}`
-  if (window.location.hash !== newHash) {
-    // replaceState to avoid polluting browser history on every click
-    history.replaceState(null, '', newHash || window.location.pathname)
-  }
-}
-
 export default function App() {
   const { state, connection, watch, reset, markStarting } = useAnalysisStream()
   const [historyList, setHistoryList] = useState<HistoryRow[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(() => parseHash().jobId)
+  const [selectedId, setSelectedId] = useState<string | null>(() => parseHash(window.location.hash).jobId)
   const [archived, setArchived] = useState<View | null>(null)
   const [demo, setDemo] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(() => parseHash().nodeSlug)
+  const [selection, setSelection] = useState<Selection | null>(
+    () => parseHash(window.location.hash).selection,
+  )
 
   const refreshHistory = useCallback(() => {
     fetchHistory().then(setHistoryList).catch(() => undefined)
@@ -56,14 +44,18 @@ export default function App() {
     if (state.runStatus === 'completed' || state.runStatus === 'failed') refreshHistory()
   }, [state.runStatus, refreshHistory])
 
-  // Sync URL when selection changes
+  // Sync URL when selection changes. replaceState, so clicking around a run
+  // does not fill the back button with a trail of desks.
   useEffect(() => {
-    updateHash(selectedId, selectedSlug)
-  }, [selectedId, selectedSlug])
+    const next = hashFor(selectedId, selection)
+    if (window.location.hash !== next) {
+      history.replaceState(null, '', next || window.location.pathname)
+    }
+  }, [selectedId, selection])
 
   // Restore from URL on page load (for history entries)
   useEffect(() => {
-    const { jobId } = parseHash()
+    const { jobId } = parseHash(window.location.hash)
     if (jobId && !selectedId) {
       setSelectedId(jobId)
       // Try to load from history
@@ -74,31 +66,32 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Auto-select the first completed node when none is selected
+  // Land on the whole office rather than a blank panel. Nothing moves it after
+  // that: a run that dragged the page into whichever team was working would
+  // yank it out from under whatever you were reading. The room lights up
+  // instead, and you follow it or you don't.
   useEffect(() => {
-    if (archived || selectedSlug) return
-    const doneNodes = Object.entries(state.nodes)
-      .filter(([, s]) => s === 'done')
-      .map(([n]) => n)
-    if (doneNodes.length > 0) {
-      const order = TIMELINE_NODES.map((t) => t.node)
-      const firstDone = order.find((n) => doneNodes.includes(n))
-      if (firstDone) {
-        const tn = TIMELINE_NODES.find((t) => t.node === firstDone)
-        if (tn) setSelectedSlug(tn.slug)
-      }
-    }
-  }, [state.nodes, archived, selectedSlug])
+    if (selection) return
+    setSelection({ kind: 'office' })
+  }, [selection])
 
   const handleSelectNode = useCallback((slug: string) => {
-    setSelectedSlug(slug)
+    setSelection({ kind: 'node', slug })
+  }, [])
+
+  const handleSelectStage = useCallback((stage: Stage) => {
+    setSelection({ kind: 'stage', stage })
+  }, [])
+
+  const handleSelectOffice = useCallback(() => {
+    setSelection({ kind: 'office' })
   }, [])
 
   const handleStart = useCallback(
     async (ticker: string, date: string) => {
       setError(null)
       setArchived(null)
-      setSelectedSlug(null)
+      setSelection(null)
       reset()
       markStarting()
       try {
@@ -118,7 +111,7 @@ export default function App() {
     async (row: HistoryRow) => {
       setError(null)
       setSelectedId(row.id)
-      setSelectedSlug(null)
+      setSelection(null)
       if (row.status === 'running') {
         setArchived(null)
         reset()
@@ -140,6 +133,14 @@ export default function App() {
   const view = archived ?? liveView
   const busy = state.runStatus === 'starting' || state.runStatus === 'running'
 
+  // Debate turns come from the live event stream only. A stored run keeps whole
+  // histories rather than per-turn slices (see `viewFromHistory`), so counting
+  // an archived run would report one round however many actually ran.
+  const turns = useMemo(
+    () => countTurns([...state.investmentDebate, ...state.riskDebate]),
+    [state.investmentDebate, state.riskDebate],
+  )
+
   const hasAnyContent = view.reports.length > 0
     || view.investmentDebate.length > 0
     || view.investmentJudge !== null
@@ -147,9 +148,8 @@ export default function App() {
     || view.riskDebate.length > 0
     || view.decision !== null
 
-  const selectedLabel = selectedSlug
-    ? TIMELINE_NODES.find((t) => t.slug === selectedSlug)?.label ?? ''
-    : ''
+  const selectedNode = selection?.kind === 'node' ? nodeBySlug(selection.slug) : undefined
+  const selectedStage = selection?.kind === 'stage' ? selection.stage : null
 
   return (
     <div className="app">
@@ -172,9 +172,10 @@ export default function App() {
         <aside className="app__column app__column--timeline">
           <Timeline
             nodes={archived ? {} : state.nodes}
-            selectedSlug={selectedSlug}
-            onSelectNode={handleSelectNode}
+            selection={selection}
+            onSelect={setSelection}
             nodeHasContent={(slug: string) => nodeHasContent(slug, view)}
+            turns={archived ? undefined : turns}
           />
         </aside>
 
@@ -186,23 +187,56 @@ export default function App() {
             <p className="status-line">{state.statusMessage}</p>
           )}
 
-          {selectedSlug && (hasAnyContent || archived) ? (
+          {selectedNode ? (
             <div className="node-content">
-              <h2 className="node-content__title">{selectedLabel}</h2>
-              <NodeDetail
-                slug={selectedSlug}
+              <nav className="crumbs" aria-label="面包屑">
+                <button type="button" className="crumbs__link" onClick={handleSelectOffice}>
+                  ← {OFFICE_LABEL}
+                </button>
+                <span aria-hidden="true">/</span>
+                <button
+                  type="button"
+                  className="crumbs__link"
+                  onClick={() => handleSelectStage(selectedNode.stage)}
+                >
+                  {STAGE_LABELS[selectedNode.stage]}
+                </button>
+                <span aria-hidden="true">/</span>
+                <span>{selectedNode.label}</span>
+              </nav>
+              <h2 className="node-content__title">{selectedNode.label}</h2>
+              <NodeDetail slug={selectedNode.slug} view={view} />
+            </div>
+          ) : selectedStage ? (
+            <div className="node-content">
+              <nav className="crumbs" aria-label="面包屑">
+                <button type="button" className="crumbs__link" onClick={handleSelectOffice}>
+                  ← {OFFICE_LABEL}
+                </button>
+                <span aria-hidden="true">/</span>
+                <span>{STAGE_LABELS[selectedStage]}</span>
+              </nav>
+              <Office
+                stage={selectedStage}
+                nodes={archived ? {} : state.nodes}
                 view={view}
+                turns={archived ? undefined : turns}
+                onSelectNode={handleSelectNode}
               />
             </div>
+          ) : selection?.kind === 'office' ? (
+            <Floorplan
+              nodes={archived ? {} : state.nodes}
+              view={view}
+              turns={archived ? undefined : turns}
+              onSelectNode={handleSelectNode}
+              onSelectStage={handleSelectStage}
+            />
           ) : (
             <p className="empty">
-              {busy
-                ? '分析进行中…完成的角色会亮起，点击查看报告'
-                : selectedId && !hasAnyContent
-                  ? '❌ 该分析任务失败，无可用报告。请重新发起分析。'
-                  : hasAnyContent
-                    ? '点击左侧角色查看详细报告'
-                    : '输入股票代码与交易日期，点击「开始分析」'}
+              {selectedId && !hasAnyContent && !busy
+                ? '❌ 该分析任务失败，无可用报告。请重新发起分析。'
+                : '输入股票代码与交易日期，点击「开始分析」'}
             </p>
           )}
         </main>

@@ -237,3 +237,6 @@ web/analysis.db-shm
 # page when index.html is absent.
 web/frontend/node_modules/
 web/static/
+
+# A stray `npx` run outside web/frontend installs here instead of there.
+node_modules/
