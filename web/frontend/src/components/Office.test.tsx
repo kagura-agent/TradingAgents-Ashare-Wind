@@ -5,6 +5,7 @@ import { Office } from './Office'
 import { EMPTY_VIEW, type ResultView } from '../lib/view'
 import { stageNodes } from '../lib/nodes'
 import type { NodeStatus } from '../lib/analysisReducer'
+import css from '../styles/app.css?raw'
 
 type Props = Parameters<typeof Office>[0]
 
@@ -165,5 +166,22 @@ describe('Office', () => {
     renderOffice({ stage: 'risk' })
 
     expect(screen.getByRole('region', { name: '风控与决策办公区' })).toBeInTheDocument()
+  })
+})
+
+describe('office floor plans', () => {
+  // jsdom lays nothing out, so the four plans cannot be checked by rendering.
+  // What can be checked is that none of them reaches outside its own shape:
+  // `grid-area: left` written unscoped also matched the debate room, which has
+  // no such area, and stacked both debaters in one implicit cell.
+  it('confine named grid areas to the shape that defines them', () => {
+    const shapes = [...css.matchAll(/^(.+)\{[^}]*grid-template-areas:\s*'/gm)]
+      .flatMap((m) => [...m[1].matchAll(/data-shape='([a-z-]+)'/g)].map((s) => s[1]))
+
+    expect(new Set(shapes)).toEqual(new Set(['round-robin']))
+
+    for (const rule of css.matchAll(/^(.+)\{[^}]*grid-area:\s*(?!auto)([a-z-]+)/gm)) {
+      expect(rule[1]).toMatch(/\.office\[data-shape='round-robin'\]/)
+    }
   })
 })

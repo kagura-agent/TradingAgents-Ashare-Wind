@@ -815,7 +815,7 @@ body {
   justify-items: center;
 }
 
-.office__table {
+.office[data-shape='round-robin'] .office__table {
   grid-area: table;
   align-self: center;
   width: 100%;
@@ -824,9 +824,12 @@ body {
   background: var(--border-strong);
 }
 
-.office__seat[data-side='top'] { grid-area: top; }
-.office__seat[data-side='left'] { grid-area: left; }
-.office__seat[data-side='right'] { grid-area: right; }
+/* Named areas belong to the round table alone. Left unscoped, `grid-area:
+   left` also matches the debate room — which has no such area — and both
+   debaters land in one implicit cell, drawn on top of each other. */
+.office[data-shape='round-robin'] .office__seat[data-side='top'] { grid-area: top; }
+.office[data-shape='round-robin'] .office__seat[data-side='left'] { grid-area: left; }
+.office[data-shape='round-robin'] .office__seat[data-side='right'] { grid-area: right; }
 
 /* -- the gallery: whoever rules on the room, sitting apart from it -- */
 
@@ -849,7 +852,7 @@ body {
     grid-template-areas: none;
     justify-items: stretch;
   }
-  .office__seat[data-side] {
+  .office[data-shape='round-robin'] .office__seat[data-side] {
     grid-area: auto;
   }
   .office__table,
