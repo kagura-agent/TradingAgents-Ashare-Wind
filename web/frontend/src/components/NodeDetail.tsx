@@ -1,5 +1,6 @@
 /** Full-page view for a single timeline node's content. */
 
+import { SLUG_TO_REPORT_KEY } from '../lib/nodeContent'
 import type { ResultView as ResultViewModel } from '../lib/view'
 import { DecisionCard } from './DecisionCard'
 import { Markdown } from './Markdown'
@@ -8,16 +9,6 @@ import { ReportCard } from './ReportCard'
 interface Props {
   slug: string
   view: ResultViewModel
-}
-
-/** Map a node slug to the report key it corresponds to (analyst nodes only). */
-const SLUG_TO_REPORT_KEY: Record<string, string> = {
-  'market-analyst': 'market_report',
-  'sentiment-analyst': 'sentiment_report',
-  'news-analyst': 'news_report',
-  'fundamentals-analyst': 'fundamentals_report',
-  'annual-report-analyst': 'annual_report',
-  'industry-chain-analyst': 'industry_report',
 }
 
 export function NodeDetail({ slug, view }: Props) {
@@ -195,34 +186,4 @@ function renderNodeContent(slug: string, view: ResultViewModel) {
   }
 
   return null
-}
-
-/**
- * Check whether a specific node slug has content available in the view.
- * Used by the timeline to determine clickability.
- */
-export function nodeHasContent(slug: string, view: ResultViewModel): boolean {
-  const reportKey = SLUG_TO_REPORT_KEY[slug]
-  if (reportKey) return view.reports.some((r) => r.key === reportKey)
-
-  switch (slug) {
-    case 'bull-researcher':
-      return view.investmentDebate.some((e) => e.speaker.includes('Bull'))
-    case 'bear-researcher':
-      return view.investmentDebate.some((e) => e.speaker.includes('Bear'))
-    case 'research-manager':
-      return view.investmentJudge !== null
-    case 'trader':
-      return view.traderPlan !== null
-    case 'aggressive-analyst':
-      return view.riskDebate.some((e) => e.speaker.includes('Aggressive'))
-    case 'conservative-analyst':
-      return view.riskDebate.some((e) => e.speaker.includes('Conservative'))
-    case 'neutral-analyst':
-      return view.riskDebate.some((e) => e.speaker.includes('Neutral'))
-    case 'portfolio-manager':
-      return view.decision !== null
-    default:
-      return false
-  }
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  STAGES,
+  STAGE_ICONS,
   STAGE_LABELS,
   STAGE_SHAPES,
   STAGE_SHAPE_HINT,
@@ -8,16 +10,22 @@ import {
   stageHint,
   stageNodes,
   stageRounds,
-  type Stage,
 } from './nodes'
 
-const STAGES = Object.keys(STAGE_LABELS) as Stage[]
-
 describe('stage topology', () => {
+  it('lists the same stages it labels', () => {
+    // STAGES is spelled out for its order; this pins it against the labels so
+    // adding a stage to one and not the other cannot pass.
+    expect([...STAGES].sort()).toEqual(Object.keys(STAGE_LABELS).sort())
+    expect(STAGES).toHaveLength(new Set(STAGES).size)
+    expect(new Set(TIMELINE_NODES.map((n) => n.stage))).toEqual(new Set(STAGES))
+  })
+
   it('gives every stage a shape', () => {
     for (const stage of STAGES) {
       expect(STAGE_SHAPES[stage]).toBeDefined()
       expect(STAGE_SHAPE_HINT[STAGE_SHAPES[stage]]).toBeDefined()
+      expect(STAGE_ICONS[stage]).toBeTruthy()
     }
   })
 

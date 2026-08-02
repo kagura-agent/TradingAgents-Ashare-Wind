@@ -49,6 +49,14 @@
   --radius: 10px;
   --radius-lg: 14px;
 
+  /* Pixel avatars in the office view. Skin and hair are not semantic colours —
+     no market meaning attaches to them — so they are named for what they paint.
+     The clothes slot is derived per figure in app.css, from its tone. */
+  --pixel-skin: #e6b48c;
+  --pixel-hair: #3a3029;
+  --pixel-dark: #2c313a;
+  --pixel-light: #f4f6f9;
+
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
   --shadow: 0 4px 16px rgba(16, 24, 40, 0.08);
 
@@ -87,6 +95,11 @@
     --bearish-soft: rgba(53, 185, 122, 0.16);
     --danger: #ff7a6b;
     --danger-soft: rgba(255, 122, 107, 0.16);
+
+    --pixel-skin: #cf9b74;
+    --pixel-hair: #241d18;
+    --pixel-dark: #11151b;
+    --pixel-light: #cdd4de;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 6px 20px rgba(0, 0, 0, 0.45);

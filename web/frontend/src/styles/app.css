@@ -276,13 +276,33 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
   padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-1);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  cursor: pointer;
+  font: inherit;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
+  text-align: left;
   text-transform: uppercase;
-  color: var(--text-faint);
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+
+.timeline__stage-header:hover {
+  background: var(--bg-sunken);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.timeline__stage-header[data-selected] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .timeline__list {
@@ -555,129 +575,297 @@ body {
   .timeline__item[data-status='running'] > span:not(.timeline__dot):not(.visually-hidden):not(.timeline__turn-badge) {
     animation: none;
   }
-  .timeline__chevron {
-    transition: none;
-  }
-  .stage-collapse {
-    transition: none;
-  }
 }
 
-/* --------------------------------------------------------- stage detail page */
+/* ------------------------------------------------------------------ office */
 
-.app__stage-detail {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: var(--space-4);
-  min-height: calc(100vh - 60px);
-}
+/* A stage rendered as the room its team works in. The four floor plans differ
+   only in how `.office__floor` places its seats, so everything about a seat —
+   the figure, the desk, the nameplate, the bubble above the head — is written
+   once here and laid out per shape below. */
 
-.stage-detail__back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  margin-bottom: var(--space-4);
-  transition: background 150ms, color 150ms;
-}
-
-.stage-detail__back:hover {
-  background: var(--bg-sunken);
-  color: var(--text);
-}
-
-.stage-detail__title {
-  font-size: var(--text-xl);
-  margin: 0 0 var(--space-4) 0;
-  color: var(--text);
-}
-
-.stage-detail__content {
+.office {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
-/* --------------------------------------------------------- timeline stage buttons */
-
-.timeline__stage-icon {
-  font-size: 1.1em;
-}
-
-.timeline__stage-name {
-  flex: 1;
-}
-
-.result-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.stage-section {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.stage-section__header {
+.office__header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--bg-raised);
-  border: none;
-  cursor: pointer;
-  color: var(--text);
-  font-size: var(--text-md);
-  font-weight: 600;
-  text-align: left;
-  transition: background 150ms;
 }
 
-.stage-section__header:hover {
-  background: var(--bg-sunken);
+.office__icon {
+  font-size: 1.2em;
 }
 
-.stage-section__chevron {
-  font-size: 0.65em;
-  transition: transform 300ms ease;
-  display: inline-block;
-}
-
-.stage-section__chevron[data-open] {
-  transform: rotate(90deg);
-}
-
-.stage-section__title {
+.office__title {
   margin: 0;
-  font-size: inherit;
-  font-weight: inherit;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.stage-collapse {
+.office__hint {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.office__floor {
   display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 300ms ease-out;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
-.stage-collapse[data-expanded='true'] {
-  grid-template-rows: 1fr;
-}
+/* -- one seat -- */
 
-.stage-collapse__inner {
-  overflow: hidden;
-  min-height: 0;
+.office__seat {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  /* Bubbles grow upward from the head, so the figure stays on the floor line
+     however much any one person has said. */
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.office__person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: inherit;
+  font: inherit;
+  transition: background 150ms, border-color 150ms, transform 150ms;
+}
+
+.office__person[data-clickable] {
+  cursor: pointer;
+}
+
+.office__person[data-clickable]:hover {
+  background: var(--bg-raised);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.pixel-avatar {
+  --pixel-body: var(--tone, var(--text-faint));
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+.pixel-avatar[data-facing='left'] {
+  transform: scaleX(-1);
+}
+
+/* Only the person at work fidgets; a pending seat is meant to look idle. */
+.office__seat[data-status='running'] .pixel-avatar {
+  animation: pixel-idle 1.2s steps(1, end) infinite;
+}
+
+@keyframes pixel-idle {
+  0%, 49% { translate: 0 0; }
+  50%, 100% { translate: 0 -2px; }
+}
+
+.office__desk {
+  width: 68px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+.office__nameplate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.office__seat[data-status='done'] .office__nameplate,
+.office__seat[data-status='running'] .office__nameplate {
+  color: var(--text);
+}
+
+.office__lamp {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.office__seat[data-status='done'] .office__lamp {
+  background: var(--lean-bearish);
+}
+
+.office__seat[data-status='running'] .office__lamp {
+  background: var(--accent);
+  animation: pulse-glow 1.4s ease-in-out infinite;
+}
+
+/* -- what they are saying -- */
+
+.office__bubbles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
+}
+
+.office__bubble {
+  position: relative;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  max-width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* The tail, pointing down at the head below. */
+.office__bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  translate: -50% 0;
+  rotate: 45deg;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Only the last bubble in a stack needs a tail; the rest are earlier rounds. */
+.office__bubble:not(:last-child)::after {
+  display: none;
+}
+
+.office__bubble[data-empty='true'] {
+  background: none;
+  border-style: dashed;
+  box-shadow: none;
+  color: var(--text-faint);
+}
+
+.office__bubble[data-empty='true']::after {
+  display: none;
+}
+
+.office__bubble-more {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* -- floor plans -- */
+
+/* Six analysts who share no data: one desk each, as many per row as fit. */
+.office[data-shape='parallel'] .office__floor,
+.office[data-shape='linear'] .office__floor {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  align-items: end;
+}
+
+.office[data-shape='linear'] .office__floor {
+  justify-items: center;
+}
+
+/* Two researchers at opposite ends, arguing across the room. */
+.office[data-shape='debate'] .office__floor {
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+}
+
+.office__versus {
+  align-self: center;
+  font-size: 20px;
+}
+
+/* Three risk seats around a table: one at the head, two along the sides. */
+.office[data-shape='round-robin'] .office__floor {
+  grid-template-columns: 1fr minmax(80px, 140px) 1fr;
+  grid-template-areas:
+    '.    top   .'
+    'left table right';
+  align-items: end;
+  justify-items: center;
+}
+
+.office__table {
+  grid-area: table;
+  align-self: center;
+  width: 100%;
+  height: 46px;
+  border-radius: var(--radius-lg);
+  background: var(--border-strong);
+}
+
+.office__seat[data-side='top'] { grid-area: top; }
+.office__seat[data-side='left'] { grid-area: left; }
+.office__seat[data-side='right'] { grid-area: right; }
+
+/* -- the gallery: whoever rules on the room, sitting apart from it -- */
+
+.office__gallery {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 860px) {
+  /* Side-by-side stops meaning anything once a column is one thumb wide. */
+  .office[data-shape='debate'] .office__floor,
+  .office[data-shape='round-robin'] .office__floor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: none;
+    justify-items: stretch;
+  }
+  .office__seat[data-side] {
+    grid-area: auto;
+  }
+  .office__table,
+  .office__versus {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .office__seat[data-status='running'] .pixel-avatar,
+  .office__seat[data-status='running'] .office__lamp {
+    animation: none;
+  }
+  .office__person {
+    transition: none;
+  }
 }
 
 /* ------------------------------------------------------------------ badges */
@@ -995,8 +1183,35 @@ body {
   font-size: 0.7em;
 }
 
+/* Trail back to the office this person was clicked out of. */
+.node-content__crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.node-content__crumb {
+  padding: var(--space-1) var(--space-2);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+
+.node-content__crumb:hover {
+  background: var(--bg-sunken);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 .node-content__title {
-  font-size: var(--text-lg);
+  font-size: 17px;
   margin: 0 0 var(--space-3) 0;
   color: var(--text);
   border-bottom: 1px solid var(--border);

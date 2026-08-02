@@ -10,7 +10,16 @@
  * see the topology notes above `STAGE_SHAPES` itself.
  */
 
+import type { NodeStatus } from './analysisReducer'
+
 export type Stage = 'analysis' | 'research' | 'trading' | 'risk'
+
+/** How a node's progress reads in the sidebar and in the office. */
+export const NODE_STATUS_TEXT: Record<NodeStatus, string> = {
+  pending: '待执行',
+  running: '进行中',
+  done: '已完成',
+}
 
 /**
  * Whether a node argues inside its stage or rules on it.
@@ -35,6 +44,22 @@ export const STAGE_LABELS: Record<Stage, string> = {
   research: '研究团队',
   trading: '交易执行',
   risk: '风控与决策',
+}
+
+/**
+ * The four stages in execution order.
+ *
+ * Spelled out rather than derived from `STAGE_LABELS`, whose key order is
+ * incidental; nodes.test.ts pins the two against each other.
+ */
+export const STAGES: readonly Stage[] = ['analysis', 'research', 'trading', 'risk']
+
+/** Shown beside a stage name in both the sidebar and its office header. */
+export const STAGE_ICONS: Record<Stage, string> = {
+  analysis: '📊',
+  research: '⚔️',
+  trading: '💹',
+  risk: '🛡️',
 }
 
 /**

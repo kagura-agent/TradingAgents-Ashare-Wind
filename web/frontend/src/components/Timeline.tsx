@@ -7,10 +7,16 @@
  * for the independent analysts, a loop rail for the two debates — and the
  * judges that the debate loops exit *to* are split into their own list so they
  * sit a level above the participants rather than queued behind them.
+ *
+ * Two levels are selectable: a stage heading opens that team's office
+ * (components/Office.tsx), a row opens one member's full content.
  */
 
 import type { NodeStatus } from '../lib/analysisReducer'
 import {
+  NODE_STATUS_TEXT,
+  STAGES,
+  STAGE_ICONS,
   STAGE_LABELS,
   STAGE_SHAPES,
   stageHint,
@@ -20,25 +26,13 @@ import {
   type TimelineNode,
 } from '../lib/nodes'
 
-const STAGES: Stage[] = ['analysis', 'research', 'trading', 'risk']
-
-const STATUS_TEXT: Record<NodeStatus, string> = {
-  pending: '待执行',
-  running: '进行中',
-  done: '已完成',
-}
-
-const STAGE_ICONS: Record<Stage, string> = {
-  analysis: '📊',
-  research: '⚔️',
-  trading: '💹',
-  risk: '🛡️',
-}
-
 interface TimelineProps {
   nodes: Record<string, NodeStatus>
   selectedSlug: string | null
+  /** The stage whose office is on screen, if any. */
+  selectedStage: Stage | null
   onSelectNode: (slug: string) => void
+  onSelectStage: (stage: Stage) => void
   nodeHasContent: (slug: string) => boolean
   /**
    * Turns taken per speaker, for the two cyclic stages. Omitted for an
@@ -47,9 +41,13 @@ interface TimelineProps {
   turns?: Record<string, number>
 }
 
-interface ItemProps extends Omit<TimelineProps, 'nodes'> {
+interface ItemProps {
   node: TimelineNode
   status: NodeStatus
+  selectedSlug: string | null
+  onSelectNode: (slug: string) => void
+  nodeHasContent: (slug: string) => boolean
+  turns?: Record<string, number>
 }
 
 function TimelineItem({ node, status, selectedSlug, onSelectNode, nodeHasContent, turns }: ItemProps) {
@@ -91,14 +89,22 @@ function TimelineItem({ node, status, selectedSlug, onSelectNode, nodeHasContent
           <span className="timeline__dot" aria-hidden="true" />
           <span>{node.label}</span>
           {badge}
-          <span className="visually-hidden">{STATUS_TEXT[status]}{spoken}</span>
+          <span className="visually-hidden">{NODE_STATUS_TEXT[status]}{spoken}</span>
         </>
       )}
     </li>
   )
 }
 
-export function Timeline({ nodes, selectedSlug, onSelectNode, nodeHasContent, turns }: TimelineProps) {
+export function Timeline({
+  nodes,
+  selectedSlug,
+  selectedStage,
+  onSelectNode,
+  onSelectStage,
+  nodeHasContent,
+  turns,
+}: TimelineProps) {
   const renderList = (stage: Stage, role: NodeRole) => {
     const members = stageNodes(stage, role)
     if (members.length === 0) return null
@@ -124,14 +130,22 @@ export function Timeline({ nodes, selectedSlug, onSelectNode, nodeHasContent, tu
     <nav className="timeline" aria-label="执行进度">
       {STAGES.map((stage) => {
         const hint = stageHint(stage, turns)
+        const selected = stage === selectedStage
 
         return (
           <section key={stage} className="timeline__section">
-            <div className="timeline__stage-header">
-              <span className="timeline__stage-icon">{STAGE_ICONS[stage]}</span>
+            <button
+              type="button"
+              className="timeline__stage-header"
+              data-stage={stage}
+              data-selected={selected || undefined}
+              onClick={() => onSelectStage(stage)}
+              aria-label={`${STAGE_LABELS[stage]} — ${selected ? '当前查看' : '点击查看团队办公区'}`}
+            >
+              <span className="timeline__stage-icon" aria-hidden="true">{STAGE_ICONS[stage]}</span>
               <span className="timeline__stage-name">{STAGE_LABELS[stage]}</span>
               {hint && <span className="timeline__stage-hint">{hint}</span>}
-            </div>
+            </button>
             {renderList(stage, 'participant')}
             {renderList(stage, 'judge')}
           </section>

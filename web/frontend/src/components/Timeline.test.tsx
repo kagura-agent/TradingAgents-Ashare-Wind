@@ -1,11 +1,31 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Timeline } from './Timeline'
 import { STAGE_LABELS, TIMELINE_NODES } from '../lib/nodes'
 import type { NodeStatus } from '../lib/analysisReducer'
 
 const noop = () => {}
 const noContent = () => false
+
+type Props = Parameters<typeof Timeline>[0]
+
+/** Every test cares about one or two props; this fills in the rest. */
+function props(overrides: Partial<Props> = {}): Props {
+  return {
+    nodes: {},
+    selectedSlug: null,
+    selectedStage: null,
+    onSelectNode: noop,
+    onSelectStage: noop,
+    nodeHasContent: noContent,
+    ...overrides,
+  }
+}
+
+function renderTimeline(overrides: Partial<Props> = {}) {
+  return render(<Timeline {...props(overrides)} />)
+}
 
 function item(node: string): HTMLElement {
   const el = document.querySelector<HTMLElement>(`[data-node="${node}"]`)
@@ -15,7 +35,7 @@ function item(node: string): HTMLElement {
 
 describe('Timeline', () => {
   it('renders every node up front so the run has a visible shape', () => {
-    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline()
 
     expect(document.querySelectorAll('[data-node]')).toHaveLength(TIMELINE_NODES.length)
     for (const node of TIMELINE_NODES) {
@@ -25,7 +45,7 @@ describe('Timeline', () => {
   })
 
   it('groups nodes under their stage headings', () => {
-    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline()
 
     for (const label of Object.values(STAGE_LABELS)) {
       expect(screen.getByText(label)).toBeInTheDocument()
@@ -35,36 +55,35 @@ describe('Timeline', () => {
 
   it('reflects node status transitions', () => {
     const nodes: Record<string, NodeStatus> = { 'Market Analyst': 'running' }
-    const { rerender } = render(<Timeline nodes={nodes} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    const { rerender } = renderTimeline({ nodes })
 
     expect(item('Market Analyst')).toHaveAttribute('data-status', 'running')
     expect(item('News Analyst')).toHaveAttribute('data-status', 'pending')
 
-    rerender(<Timeline nodes={{ 'Market Analyst': 'done', 'News Analyst': 'running' }} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    rerender(<Timeline {...props({ nodes: { 'Market Analyst': 'done', 'News Analyst': 'running' } })} />)
 
     expect(item('Market Analyst')).toHaveAttribute('data-status', 'done')
     expect(item('News Analyst')).toHaveAttribute('data-status', 'running')
   })
 
   it('announces status in text for screen readers', () => {
-    render(<Timeline nodes={{ Trader: 'running' }} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline({ nodes: { Trader: 'running' } })
 
     expect(item('Trader')).toHaveTextContent('进行中')
     expect(item('Portfolio Manager')).toHaveTextContent('待执行')
   })
 
   it('ignores nodes it does not know about', () => {
-    render(<Timeline nodes={{ 'Some Future Agent': 'running' }} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline({ nodes: { 'Some Future Agent': 'running' } })
 
     expect(document.querySelectorAll('[data-node]')).toHaveLength(TIMELINE_NODES.length)
     expect(screen.queryByText('Some Future Agent')).toBeNull()
   })
 
   it('marks done nodes as clickable', () => {
-    const nodes: Record<string, NodeStatus> = { 'Market Analyst': 'done' }
     // Only market-analyst has content
     const hasContent = (slug: string) => slug === 'market-analyst'
-    render(<Timeline nodes={nodes} selectedSlug={null} onSelectNode={noop} nodeHasContent={hasContent} />)
+    renderTimeline({ nodes: { 'Market Analyst': 'done' }, nodeHasContent: hasContent })
 
     expect(item('Market Analyst')).toHaveAttribute('data-clickable')
     expect(item('News Analyst')).not.toHaveAttribute('data-clickable')
@@ -72,21 +91,30 @@ describe('Timeline', () => {
 
   it('marks only the selected node as selected', () => {
     const hasContent = () => true
-    const { rerender } = render(
-      <Timeline nodes={{}} selectedSlug="market-analyst" onSelectNode={noop} nodeHasContent={hasContent} />,
-    )
+    const { rerender } = renderTimeline({ selectedSlug: 'market-analyst', nodeHasContent: hasContent })
 
     expect(item('Market Analyst')).toHaveAttribute('data-selected')
     expect(item('News Analyst')).not.toHaveAttribute('data-selected')
     expect(screen.getByRole('button', { name: /市场分析师 — 当前查看/ })).toBeInTheDocument()
 
-    rerender(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={hasContent} />)
+    rerender(<Timeline {...props({ nodeHasContent: hasContent })} />)
 
     expect(item('Market Analyst')).not.toHaveAttribute('data-selected')
   })
 
+  it('opens a team office when its heading is clicked', async () => {
+    const onSelectStage = vi.fn()
+    renderTimeline({ selectedStage: 'analysis', onSelectStage })
+
+    await userEvent.click(screen.getByRole('button', { name: /研究团队 — 点击查看团队办公区/ }))
+
+    expect(onSelectStage).toHaveBeenCalledWith('research')
+    // The stage already on screen says so rather than inviting another click.
+    expect(screen.getByRole('button', { name: /分析师团队 — 当前查看/ })).toHaveAttribute('data-selected')
+  })
+
   it('labels each stage with how it is wired', () => {
-    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline()
 
     expect(screen.getByText('并行')).toBeInTheDocument()
     expect(screen.getByText('多空往返辩论')).toBeInTheDocument()
@@ -94,7 +122,7 @@ describe('Timeline', () => {
   })
 
   it('separates the judges from the participants they rule on', () => {
-    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline()
 
     expect(item('Research Manager')).toHaveAttribute('data-role', 'judge')
     expect(item('Portfolio Manager')).toHaveAttribute('data-role', 'judge')
@@ -104,7 +132,7 @@ describe('Timeline', () => {
   })
 
   it('marks the cyclic stages so their loop can be drawn', () => {
-    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline()
 
     const shapes = [...document.querySelectorAll('.timeline__list[data-role="participant"]')]
       .map((el) => el.getAttribute('data-shape'))
@@ -113,10 +141,7 @@ describe('Timeline', () => {
   })
 
   it('reports rounds and per-speaker turns from a live run', () => {
-    const turns = { 'Bull Researcher': 2, 'Bear Researcher': 2, 'Aggressive Analyst': 1 }
-    render(
-      <Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} turns={turns} />,
-    )
+    renderTimeline({ turns: { 'Bull Researcher': 2, 'Bear Researcher': 2, 'Aggressive Analyst': 1 } })
 
     expect(screen.getByText('已辩论 2 轮')).toBeInTheDocument()
     expect(screen.getByText('已轮转 1 轮')).toBeInTheDocument()
@@ -128,7 +153,7 @@ describe('Timeline', () => {
   it('reports no rounds for an archived run, whose turns cannot be counted', () => {
     // A stored run collapses each speaker's whole history into one entry, so
     // App passes no turns rather than a count that would understate the run.
-    render(<Timeline nodes={{}} selectedSlug={null} onSelectNode={noop} nodeHasContent={noContent} />)
+    renderTimeline()
 
     expect(screen.queryByText(/已辩论/)).toBeNull()
     expect(screen.queryByText(/已轮转/)).toBeNull()
