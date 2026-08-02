@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hashFor, parseHash } from './route'
+import { OFFICE_ROUTE, hashFor, parseHash } from './route'
 import { STAGES, TIMELINE_NODES, VALID_SLUGS } from './nodes'
 
 describe('parseHash', () => {
@@ -21,6 +21,10 @@ describe('parseHash', () => {
     })
   })
 
+  it('reads the whole-office overview', () => {
+    expect(parseHash('#/job-1/office')).toEqual({ jobId: 'job-1', selection: { kind: 'office' } })
+  })
+
   it('yields nothing for an empty hash', () => {
     expect(parseHash('')).toEqual({ jobId: null, selection: null })
     expect(parseHash('#')).toEqual({ jobId: null, selection: null })
@@ -40,6 +44,7 @@ describe('hashFor', () => {
   it('round-trips every selection', () => {
     const selections = [
       null,
+      { kind: 'office' } as const,
       ...TIMELINE_NODES.map((n) => ({ kind: 'node', slug: n.slug }) as const),
       ...STAGES.map((stage) => ({ kind: 'stage', stage }) as const),
     ]
@@ -50,8 +55,10 @@ describe('hashFor', () => {
   })
 })
 
-it('keeps stage ids and node slugs disjoint, since both are one route segment', () => {
+it('keeps every route segment disjoint, since one segment carries all three', () => {
   for (const stage of STAGES) {
     expect(VALID_SLUGS.has(stage)).toBe(false)
   }
+  expect(VALID_SLUGS.has(OFFICE_ROUTE)).toBe(false)
+  expect(STAGES).not.toContain(OFFICE_ROUTE)
 })

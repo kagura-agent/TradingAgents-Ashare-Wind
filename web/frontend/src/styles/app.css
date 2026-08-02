@@ -272,7 +272,8 @@ body {
   gap: var(--space-4);
 }
 
-.timeline__stage-header {
+.timeline__stage-header,
+.timeline__office {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -293,16 +294,27 @@ body {
   transition: background 150ms, border-color 150ms, color 150ms;
 }
 
-.timeline__stage-header:hover {
+.timeline__stage-header:hover,
+.timeline__office:hover {
   background: var(--bg-sunken);
   border-color: var(--border);
   color: var(--text-muted);
 }
 
-.timeline__stage-header[data-selected] {
+.timeline__stage-header[data-selected],
+.timeline__office[data-selected] {
   background: var(--accent-soft);
   border-color: var(--accent);
   color: var(--text);
+}
+
+/* The way back to the whole floor, above the four rooms it contains. */
+.timeline__office {
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--text-muted);
 }
 
 .timeline__list {
@@ -596,6 +608,28 @@ body {
   gap: var(--space-2);
 }
 
+/* In the overview the heading is how you get into the room. No negative margin
+   to keep it flush with the floor below: the top-left room sits against the
+   main column's edge, and anything pulled outside it gets clipped. */
+.office__open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  transition: background 150ms, border-color 150ms;
+}
+
+.office__open:hover {
+  background: var(--bg-sunken);
+  border-color: var(--accent);
+}
+
 .office__icon {
   font-size: 1.2em;
 }
@@ -810,11 +844,14 @@ body {
   font-size: 20px;
 }
 
-/* Three risk seats around a table: one at the head, two along the sides. */
+/* Three risk seats around a table: one at the head, two along the sides. The
+   head's row spans the whole floor even though the figure stays centred over
+   the table — penned into the table's own column, its bubble was three words
+   wide and every line after the second got cut off. */
 .office[data-shape='round-robin'] .office__floor {
   grid-template-columns: 1fr minmax(80px, 140px) 1fr;
   grid-template-areas:
-    '.    top   .'
+    'top  top   top'
     'left table right';
   align-items: end;
   justify-items: center;
@@ -873,6 +910,144 @@ body {
   }
   .office__person {
     transition: none;
+  }
+}
+
+/* -------------------------------------------------------------- floorplan */
+
+/* All four rooms at once. Every room is a whole `.office` in `data-compact`
+   mode, so nothing above is repeated here — this block only sizes the rooms
+   and shrinks what is inside them. */
+
+.floorplan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.floorplan__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.floorplan__icon {
+  font-size: 1.2em;
+}
+
+.floorplan__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.floorplan__hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* Rooms are sized to their teams, not evenly: six analysts across the top,
+   the debate and the one-person trading desk sharing the middle, risk along
+   the bottom. Anything even would make the trader as big as the analyst pool
+   and the picture would stop matching the org. */
+.floorplan__rooms {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 2fr 1fr;
+  grid-template-areas:
+    'analysis analysis'
+    'research trading'
+    'risk     risk';
+}
+
+/* Scoped to the container that declares the areas. Unscoped, `grid-area:
+   research` would also match a room drawn anywhere else and land it in a cell
+   that layout knows nothing about — the same failure the round table's
+   `grid-area: left` caused in the debate room. */
+.floorplan__rooms > .office[data-stage='analysis'] { grid-area: analysis; }
+.floorplan__rooms > .office[data-stage='research'] { grid-area: research; }
+.floorplan__rooms > .office[data-stage='trading'] { grid-area: trading; }
+.floorplan__rooms > .office[data-stage='risk'] { grid-area: risk; }
+
+/* -- a room seen from the floor above -- */
+
+.office[data-compact] {
+  gap: var(--space-3);
+}
+
+.office[data-compact] .office__floor {
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+}
+
+.office[data-compact] .pixel-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.office[data-compact] .office__desk {
+  width: 44px;
+  height: 4px;
+}
+
+.office[data-compact] .office__nameplate {
+  font-size: 11px;
+}
+
+.office[data-compact] .office__gallery {
+  padding: var(--space-3);
+}
+
+.office[data-compact] .office__title {
+  font-size: 13px;
+}
+
+/* Two lines tall whether the text fills them or not. A bubble sized to its own
+   text would resize the room every time a line of streamed output arrived, and
+   with a bubble over every speaker the whole floor would jump on each update.
+   The height has to come out at a whole number of line boxes — box-sizing is
+   border-box, so padding and the 1px border are in it — or the second line is
+   sliced through the middle. `-webkit-line-clamp` adds the ellipsis where the
+   browser honours it; the height is what guarantees the clean cut. */
+.office[data-compact] .office__bubble {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  height: calc(3em + 2 * var(--space-2) + 2px);
+  overflow: hidden;
+}
+
+.office[data-compact][data-shape='parallel'] .office__floor,
+.office[data-compact][data-shape='linear'] .office__floor {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.office[data-compact][data-shape='round-robin'] .office__floor {
+  grid-template-columns: 1fr minmax(50px, 90px) 1fr;
+}
+
+.office[data-compact][data-shape='round-robin'] .office__table {
+  height: 30px;
+}
+
+/* How far the run has got, without moving the page to it: each room lights up
+   as the run reaches it and stays lit. Both boxes, since a judge — the research
+   manager, the portfolio manager — sits in the gallery rather than on the
+   floor. Whoever is speaking right now is the one with the pulsing lamp. */
+.office[data-compact][data-reached] .office__floor,
+.office[data-compact][data-reached] .office__gallery {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+
+@media (max-width: 860px) {
+  /* Two columns of rooms on a phone leaves each one narrower than a figure. */
+  .floorplan__rooms {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: none;
+  }
+  .floorplan__rooms > .office[data-stage] {
+    grid-area: auto;
   }
 }
 
@@ -1191,8 +1366,8 @@ body {
   font-size: 0.7em;
 }
 
-/* Trail back to the office this person was clicked out of. */
-.node-content__crumbs {
+/* Trail back to whatever the current view was opened out of. */
+.crumbs {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -1201,7 +1376,7 @@ body {
   color: var(--text-faint);
 }
 
-.node-content__crumb {
+.crumbs__link {
   padding: var(--space-1) var(--space-2);
   background: none;
   border: 1px solid var(--border);
@@ -1212,7 +1387,7 @@ body {
   transition: background 150ms, border-color 150ms, color 150ms;
 }
 
-.node-content__crumb:hover {
+.crumbs__link:hover {
   background: var(--bg-sunken);
   border-color: var(--accent);
   color: var(--text);

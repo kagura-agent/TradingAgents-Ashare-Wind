@@ -2,9 +2,10 @@
  * What the address bar holds: which run, and what within it is on screen.
  *
  * Selection is a union rather than a slug string because the main column now
- * shows two different things — a whole team's office, or one member's full
- * content — and a bare string could not tell them apart. Stage ids double as
- * route segments; route.test.ts pins that they never collide with a node slug.
+ * shows three different things — every room at once, one team's office, or one
+ * member's full content — and a bare string could not tell them apart. Stage
+ * ids double as route segments; route.test.ts pins that neither they nor
+ * `OFFICE_ROUTE` ever collide with a node slug.
  */
 
 import { STAGES, VALID_SLUGS, type Stage } from './nodes'
@@ -12,16 +13,23 @@ import { STAGES, VALID_SLUGS, type Stage } from './nodes'
 export type Selection =
   | { kind: 'node'; slug: string }
   | { kind: 'stage'; stage: Stage }
+  | { kind: 'office' }
+
+/** The whole-office overview, and the default landing view. */
+export const OFFICE_ROUTE = 'office'
 
 const STAGE_ROUTES = new Set<string>(STAGES)
 
 /** The single path segment a selection is written as. */
 function segmentOf(selection: Selection): string {
-  return selection.kind === 'node' ? selection.slug : selection.stage
+  if (selection.kind === 'node') return selection.slug
+  if (selection.kind === 'stage') return selection.stage
+  return OFFICE_ROUTE
 }
 
 /** An unrecognised segment yields `null` rather than a selection of nothing. */
 function selectionOf(segment: string): Selection | null {
+  if (segment === OFFICE_ROUTE) return { kind: 'office' }
   if (VALID_SLUGS.has(segment)) return { kind: 'node', slug: segment }
   if (STAGE_ROUTES.has(segment)) return { kind: 'stage', stage: segment as Stage }
   return null

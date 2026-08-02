@@ -8,13 +8,18 @@
  * judges that the debate loops exit *to* are split into their own list so they
  * sit a level above the participants rather than queued behind them.
  *
- * Two levels are selectable: a stage heading opens that team's office
- * (components/Office.tsx), a row opens one member's full content.
+ * Three levels are selectable, and all three are one `Selection`: the whole
+ * office at the top (components/Floorplan.tsx), a stage heading for that team's
+ * room (components/Office.tsx), a row for one member's full content. Taking the
+ * union rather than a selected-id/handler pair per level keeps the three from
+ * disagreeing about what is on screen.
  */
 
 import type { NodeStatus } from '../lib/analysisReducer'
 import {
   NODE_STATUS_TEXT,
+  OFFICE_ICON,
+  OFFICE_LABEL,
   STAGES,
   STAGE_ICONS,
   STAGE_LABELS,
@@ -25,14 +30,13 @@ import {
   type Stage,
   type TimelineNode,
 } from '../lib/nodes'
+import type { Selection } from '../lib/route'
 
 interface TimelineProps {
   nodes: Record<string, NodeStatus>
-  selectedSlug: string | null
-  /** The stage whose office is on screen, if any. */
-  selectedStage: Stage | null
-  onSelectNode: (slug: string) => void
-  onSelectStage: (stage: Stage) => void
+  /** What the main column is showing, or `null` before it has settled. */
+  selection: Selection | null
+  onSelect: (selection: Selection) => void
   nodeHasContent: (slug: string) => boolean
   /**
    * Turns taken per speaker, for the two cyclic stages. Omitted for an
@@ -96,15 +100,11 @@ function TimelineItem({ node, status, selectedSlug, onSelectNode, nodeHasContent
   )
 }
 
-export function Timeline({
-  nodes,
-  selectedSlug,
-  selectedStage,
-  onSelectNode,
-  onSelectStage,
-  nodeHasContent,
-  turns,
-}: TimelineProps) {
+export function Timeline({ nodes, selection, onSelect, nodeHasContent, turns }: TimelineProps) {
+  const selectedSlug = selection?.kind === 'node' ? selection.slug : null
+  const selectedStage = selection?.kind === 'stage' ? selection.stage : null
+  const onSelectNode = (slug: string) => onSelect({ kind: 'node', slug })
+
   const renderList = (stage: Stage, role: NodeRole) => {
     const members = stageNodes(stage, role)
     if (members.length === 0) return null
@@ -128,6 +128,19 @@ export function Timeline({
 
   return (
     <nav className="timeline" aria-label="执行进度">
+      <button
+        type="button"
+        className="timeline__office"
+        data-selected={selection?.kind === 'office' || undefined}
+        onClick={() => onSelect({ kind: 'office' })}
+        aria-label={`${OFFICE_LABEL} — ${
+          selection?.kind === 'office' ? '当前查看' : '点击查看全部四个团队'
+        }`}
+      >
+        <span className="timeline__stage-icon" aria-hidden="true">{OFFICE_ICON}</span>
+        <span className="timeline__stage-name">{OFFICE_LABEL}</span>
+      </button>
+
       {STAGES.map((stage) => {
         const hint = stageHint(stage, turns)
         const selected = stage === selectedStage
@@ -139,7 +152,7 @@ export function Timeline({
               className="timeline__stage-header"
               data-stage={stage}
               data-selected={selected || undefined}
-              onClick={() => onSelectStage(stage)}
+              onClick={() => onSelect({ kind: 'stage', stage })}
               aria-label={`${STAGE_LABELS[stage]} — ${selected ? '当前查看' : '点击查看团队办公区'}`}
             >
               <span className="timeline__stage-icon" aria-hidden="true">{STAGE_ICONS[stage]}</span>

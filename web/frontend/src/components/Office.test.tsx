@@ -170,18 +170,41 @@ describe('Office', () => {
 })
 
 describe('office floor plans', () => {
-  // jsdom lays nothing out, so the four plans cannot be checked by rendering.
-  // What can be checked is that none of them reaches outside its own shape:
-  // `grid-area: left` written unscoped also matched the debate room, which has
-  // no such area, and stacked both debaters in one implicit cell.
-  it('confine named grid areas to the shape that defines them', () => {
-    const shapes = [...css.matchAll(/^(.+)\{[^}]*grid-template-areas:\s*'/gm)]
-      .flatMap((m) => [...m[1].matchAll(/data-shape='([a-z-]+)'/g)].map((s) => s[1]))
+  // jsdom lays nothing out, so the plans cannot be checked by rendering. What
+  // can be checked is that no named area reaches outside the container that
+  // declares it: `grid-area: left` written unscoped also matched the debate
+  // room, which has no such area, and stacked both debaters in one implicit
+  // cell. The invariant holds for the floorplan's rooms too, so it is stated
+  // once over the whole stylesheet rather than pinned to one shape.
+  it('confine named grid areas to the container that declares them', () => {
+    // Comments first: they sit above the rule they describe and hold no braces,
+    // so the selector capture below would swallow them whole.
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    const container = (selector: string) => selector.trim().split(/\s+/)[0]
 
-    expect(new Set(shapes)).toEqual(new Set(['round-robin']))
-
-    for (const rule of css.matchAll(/^(.+)\{[^}]*grid-area:\s*(?!auto)([a-z-]+)/gm)) {
-      expect(rule[1]).toMatch(/\.office\[data-shape='round-robin'\]/)
+    // Area name -> the selector of the block whose template declares it.
+    const owner = new Map<string, string>()
+    for (const block of rules.matchAll(/^([^{}]+)\{[^}]*grid-template-areas:([^;]+);/gm)) {
+      for (const row of block[2].matchAll(/'([^']*)'/g)) {
+        for (const cell of row[1].trim().split(/\s+/)) {
+          if (cell && cell !== '.') owner.set(cell, container(block[1]))
+        }
+      }
     }
+
+    expect([...owner.values()]).toContain('.floorplan__rooms')
+
+    let placements = 0
+    for (const rule of rules.matchAll(/^([^{}]+)\{[^}]*grid-area:\s*(?!auto)([a-z-]+)/gm)) {
+      const [, selector, area] = rule
+      placements += 1
+      expect(owner.has(area)).toBe(true)
+      // Every placement of an area has to sit under the container that declared
+      // it, or it also matches rooms whose layout knows nothing about the name.
+      expect(selector).toContain(owner.get(area)!)
+    }
+
+    // Without this the loop passes by matching nothing at all.
+    expect(placements).toBe(owner.size)
   })
 })

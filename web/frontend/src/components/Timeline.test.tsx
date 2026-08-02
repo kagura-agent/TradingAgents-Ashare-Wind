@@ -14,10 +14,8 @@ type Props = Parameters<typeof Timeline>[0]
 function props(overrides: Partial<Props> = {}): Props {
   return {
     nodes: {},
-    selectedSlug: null,
-    selectedStage: null,
-    onSelectNode: noop,
-    onSelectStage: noop,
+    selection: null,
+    onSelect: noop,
     nodeHasContent: noContent,
     ...overrides,
   }
@@ -91,7 +89,10 @@ describe('Timeline', () => {
 
   it('marks only the selected node as selected', () => {
     const hasContent = () => true
-    const { rerender } = renderTimeline({ selectedSlug: 'market-analyst', nodeHasContent: hasContent })
+    const { rerender } = renderTimeline({
+      selection: { kind: 'node', slug: 'market-analyst' },
+      nodeHasContent: hasContent,
+    })
 
     expect(item('Market Analyst')).toHaveAttribute('data-selected')
     expect(item('News Analyst')).not.toHaveAttribute('data-selected')
@@ -102,15 +103,38 @@ describe('Timeline', () => {
     expect(item('Market Analyst')).not.toHaveAttribute('data-selected')
   })
 
+  it('opens a node when its row is clicked', async () => {
+    const onSelect = vi.fn()
+    renderTimeline({ nodeHasContent: () => true, onSelect })
+
+    await userEvent.click(screen.getByRole('button', { name: /市场分析师 — 点击查看/ }))
+
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'node', slug: 'market-analyst' })
+  })
+
   it('opens a team office when its heading is clicked', async () => {
-    const onSelectStage = vi.fn()
-    renderTimeline({ selectedStage: 'analysis', onSelectStage })
+    const onSelect = vi.fn()
+    renderTimeline({ selection: { kind: 'stage', stage: 'analysis' }, onSelect })
 
     await userEvent.click(screen.getByRole('button', { name: /研究团队 — 点击查看团队办公区/ }))
 
-    expect(onSelectStage).toHaveBeenCalledWith('research')
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'stage', stage: 'research' })
     // The stage already on screen says so rather than inviting another click.
     expect(screen.getByRole('button', { name: /分析师团队 — 当前查看/ })).toHaveAttribute('data-selected')
+  })
+
+  it('offers the whole office above the four rooms in it', async () => {
+    const onSelect = vi.fn()
+    const { rerender } = renderTimeline({ onSelect })
+
+    await userEvent.click(screen.getByRole('button', { name: /总办公室 — 点击查看全部四个团队/ }))
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'office' })
+
+    rerender(<Timeline {...props({ selection: { kind: 'office' } })} />)
+
+    expect(screen.getByRole('button', { name: /总办公室 — 当前查看/ })).toHaveAttribute('data-selected')
+    // Landing on the overview selects no single room.
+    expect(document.querySelector('.timeline__stage-header[data-selected]')).toBeNull()
   })
 
   it('labels each stage with how it is wired', () => {

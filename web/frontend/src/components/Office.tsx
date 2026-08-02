@@ -10,6 +10,11 @@
  *
  * Layout is CSS Grid throughout: no absolute coordinates, so it reflows on a
  * phone and every desk is a real focusable control rather than a hit region.
+ *
+ * The same component is also one room of the whole-office overview (see
+ * Floorplan.tsx). `compact` is what tells the two apart: there a bubble goes to
+ * everyone who has actually said something and to nobody else, so a room fills
+ * up as the run passes through it instead of showing fourteen 「待命」 placeholders.
  */
 
 import type { NodeStatus } from '../lib/analysisReducer'
@@ -47,6 +52,10 @@ interface Props {
   /** Per-speaker turn counts; omitted for an archived run (see App). */
   turns?: Record<string, number>
   onSelectNode: (slug: string) => void
+  /** One room of the overview rather than the whole main column. */
+  compact?: boolean
+  /** Given, the room's heading becomes the control that opens it full size. */
+  onOpenStage?: (stage: Stage) => void
 }
 
 interface BubbleProps {
@@ -82,6 +91,7 @@ interface SeatProps {
   status: NodeStatus
   texts: string[]
   pose: Pose
+  /** How many recent turns hang above this head; `0` means no bubble at all. */
   bubbles: number
   facing?: 'left' | 'right'
   /** Position within the floor plan, for the grid to place off. */
@@ -111,8 +121,10 @@ function Seat({ node, status, texts, pose, bubbles, facing, side, onSelect }: Se
     >
       {/* Outside the button on purpose: as the button's accessible name it
           would replace the desk's own label, and as sibling text it stays
-          readable on its own. */}
-      <Bubbles texts={texts} status={status} limit={bubbles} />
+          readable on its own. Dropped entirely rather than emptied when the
+          room shows none — an empty bubble still says "待命", and fourteen of
+          those is the noise the overview exists to avoid. */}
+      {bubbles > 0 && <Bubbles texts={texts} status={status} limit={bubbles} />}
       {texts.length > 0 ? (
         <button
           type="button"
@@ -133,11 +145,20 @@ function Seat({ node, status, texts, pose, bubbles, facing, side, onSelect }: Se
   )
 }
 
-export function Office({ stage, nodes, view, turns, onSelectNode }: Props) {
+export function Office({ stage, nodes, view, turns, onSelectNode, compact, onOpenStage }: Props) {
   const shape = STAGE_SHAPES[stage]
   const participants = stageNodes(stage, 'participant')
   const judges = stageNodes(stage, 'judge')
   const hint = stageHint(stage, turns)
+  // Lit once the run reaches the room, and lit from then on. Tracking only who
+  // is `running` would blink: a node's start, output and completion arrive in
+  // one frame and the next node starts a few hundred milliseconds later, so the
+  // outline spent most of a run off. An archived run carries no statuses, so
+  // nothing lights up — there is no progress left to show.
+  const reached = [...participants, ...judges].some((n) => {
+    const status = nodes[n.node]
+    return status === 'running' || status === 'done'
+  })
 
   const seat = (
     node: TimelineNode,
@@ -148,6 +169,11 @@ export function Office({ stage, nodes, view, turns, onSelectNode }: Props) {
     // An archived run carries no node statuses, so content stands in for them —
     // the same fallback the timeline makes for clickability.
     const status = nodes[node.node] ?? (texts.length > 0 ? 'done' : 'pending')
+    // How many turns a desk shows is the floor plan's business either way; what
+    // `compact` changes is that a desk with nothing to say shows no bubble at
+    // all, rather than fourteen rooms of 「待命」.
+    const limit = extra.bubbles ?? 1
+    const speaks = texts.length > 0 || status === 'running'
 
     return (
       <Seat
@@ -156,7 +182,7 @@ export function Office({ stage, nodes, view, turns, onSelectNode }: Props) {
         status={status}
         texts={texts}
         pose={pose}
-        bubbles={extra.bubbles ?? 1}
+        bubbles={compact && !speaks ? 0 : limit}
         facing={extra.facing}
         side={extra.side}
         onSelect={onSelectNode}
@@ -190,13 +216,40 @@ export function Office({ stage, nodes, view, turns, onSelectNode }: Props) {
     return <>{participants.map((node) => seat(node, 'seated'))}</>
   }
 
+  // A room of the overview sits under the overview's own heading, so it drops a
+  // level; on its own in the main column it is the heading.
+  const Title = compact ? 'h3' : 'h2'
+  const heading = (
+    <>
+      <span className="office__icon" aria-hidden="true">
+        {STAGE_ICONS[stage]}
+      </span>
+      <Title className="office__title">{STAGE_LABELS[stage]}</Title>
+    </>
+  )
+
   return (
-    <section className="office" data-shape={shape} aria-label={`${STAGE_LABELS[stage]}办公区`}>
+    <section
+      className="office"
+      data-shape={shape}
+      data-stage={stage}
+      data-compact={compact || undefined}
+      data-reached={reached || undefined}
+      aria-label={`${STAGE_LABELS[stage]}办公区`}
+    >
       <header className="office__header">
-        <span className="office__icon" aria-hidden="true">
-          {STAGE_ICONS[stage]}
-        </span>
-        <h2 className="office__title">{STAGE_LABELS[stage]}</h2>
+        {onOpenStage ? (
+          <button
+            type="button"
+            className="office__open"
+            onClick={() => onOpenStage(stage)}
+            aria-label={`${STAGE_LABELS[stage]}办公区 — 点击放大查看`}
+          >
+            {heading}
+          </button>
+        ) : (
+          heading
+        )}
         {hint && <span className="office__hint">{hint}</span>}
       </header>
 

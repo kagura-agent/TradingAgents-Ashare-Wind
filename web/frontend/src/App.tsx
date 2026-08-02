@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ConnectionBadge } from './components/ConnectionBadge'
+import { Floorplan } from './components/Floorplan'
 import { HistoryList } from './components/HistoryList'
 import { NodeDetail } from './components/NodeDetail'
 import { Office } from './components/Office'
@@ -7,7 +8,7 @@ import { RunControls } from './components/RunControls'
 import { Timeline } from './components/Timeline'
 import { useAnalysisStream } from './hooks/useAnalysisStream'
 import { nodeHasContent } from './lib/nodeContent'
-import { STAGE_LABELS, TIMELINE_NODES, countTurns, nodeBySlug, type Stage } from './lib/nodes'
+import { OFFICE_LABEL, STAGE_LABELS, countTurns, nodeBySlug, type Stage } from './lib/nodes'
 import { hashFor, parseHash, type Selection } from './lib/route'
 import {
   fetchHistory,
@@ -18,12 +19,6 @@ import {
 } from './lib/api'
 import { EMPTY_VIEW, viewFromHistory, viewFromState, type ResultView as View } from './lib/view'
 import './styles/app.css'
-
-/** The stage a run is currently inside, or `null` if nothing is running. */
-function runningStage(nodes: Record<string, string>): Stage | null {
-  const active = TIMELINE_NODES.find((n) => nodes[n.node] === 'running')
-  return active?.stage ?? null
-}
 
 export default function App() {
   const { state, connection, watch, reset, markStarting } = useAnalysisStream()
@@ -71,12 +66,14 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Land in an office rather than on a blank panel: whichever team is working
-  // right now, or the analysts, who are always where a run begins.
+  // Land on the whole office rather than a blank panel. Nothing moves it after
+  // that: a run that dragged the page into whichever team was working would
+  // yank it out from under whatever you were reading. The room lights up
+  // instead, and you follow it or you don't.
   useEffect(() => {
     if (selection) return
-    setSelection({ kind: 'stage', stage: runningStage(state.nodes) ?? 'analysis' })
-  }, [state.nodes, selection])
+    setSelection({ kind: 'office' })
+  }, [selection])
 
   const handleSelectNode = useCallback((slug: string) => {
     setSelection({ kind: 'node', slug })
@@ -84,6 +81,10 @@ export default function App() {
 
   const handleSelectStage = useCallback((stage: Stage) => {
     setSelection({ kind: 'stage', stage })
+  }, [])
+
+  const handleSelectOffice = useCallback(() => {
+    setSelection({ kind: 'office' })
   }, [])
 
   const handleStart = useCallback(
@@ -171,10 +172,8 @@ export default function App() {
         <aside className="app__column app__column--timeline">
           <Timeline
             nodes={archived ? {} : state.nodes}
-            selectedSlug={selectedNode?.slug ?? null}
-            selectedStage={selectedStage}
-            onSelectNode={handleSelectNode}
-            onSelectStage={handleSelectStage}
+            selection={selection}
+            onSelect={setSelection}
             nodeHasContent={(slug: string) => nodeHasContent(slug, view)}
             turns={archived ? undefined : turns}
           />
@@ -190,13 +189,17 @@ export default function App() {
 
           {selectedNode ? (
             <div className="node-content">
-              <nav className="node-content__crumbs" aria-label="面包屑">
+              <nav className="crumbs" aria-label="面包屑">
+                <button type="button" className="crumbs__link" onClick={handleSelectOffice}>
+                  ← {OFFICE_LABEL}
+                </button>
+                <span aria-hidden="true">/</span>
                 <button
                   type="button"
-                  className="node-content__crumb"
+                  className="crumbs__link"
                   onClick={() => handleSelectStage(selectedNode.stage)}
                 >
-                  ← {STAGE_LABELS[selectedNode.stage]}
+                  {STAGE_LABELS[selectedNode.stage]}
                 </button>
                 <span aria-hidden="true">/</span>
                 <span>{selectedNode.label}</span>
@@ -205,12 +208,29 @@ export default function App() {
               <NodeDetail slug={selectedNode.slug} view={view} />
             </div>
           ) : selectedStage ? (
-            <Office
-              stage={selectedStage}
+            <div className="node-content">
+              <nav className="crumbs" aria-label="面包屑">
+                <button type="button" className="crumbs__link" onClick={handleSelectOffice}>
+                  ← {OFFICE_LABEL}
+                </button>
+                <span aria-hidden="true">/</span>
+                <span>{STAGE_LABELS[selectedStage]}</span>
+              </nav>
+              <Office
+                stage={selectedStage}
+                nodes={archived ? {} : state.nodes}
+                view={view}
+                turns={archived ? undefined : turns}
+                onSelectNode={handleSelectNode}
+              />
+            </div>
+          ) : selection?.kind === 'office' ? (
+            <Floorplan
               nodes={archived ? {} : state.nodes}
               view={view}
               turns={archived ? undefined : turns}
               onSelectNode={handleSelectNode}
+              onSelectStage={handleSelectStage}
             />
           ) : (
             <p className="empty">

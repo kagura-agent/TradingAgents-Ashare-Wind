@@ -46,6 +46,11 @@ export const STAGE_LABELS: Record<Stage, string> = {
   risk: '风控与决策',
 }
 
+/** The view holding all four rooms at once. Named here so the sidebar entry,
+    the breadcrumbs and the landmark label cannot drift apart. */
+export const OFFICE_LABEL = '总办公室'
+export const OFFICE_ICON = '🏢'
+
 /**
  * The four stages in execution order.
  *
