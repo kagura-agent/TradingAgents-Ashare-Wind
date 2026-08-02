@@ -26,6 +26,7 @@ import {
   type TimelineNode,
 } from '../lib/nodes'
 import type { Pose } from '../lib/sprites'
+import { lookOf } from '../lib/roleLook'
 import type { ResultView } from '../lib/view'
 import { PixelAvatar } from './PixelAvatar'
 import { RatingBadge } from './RatingBadge'
@@ -38,15 +39,6 @@ const DEBATE_BUBBLES = 2
 
 /** Where each risk seat sits around the table, in `stageNodes` order. */
 const RING_SEATS = ['top', 'left', 'right']
-
-/** Clothes colour per role. A-share convention: bulls red, bears green. */
-const ROLE_TONE: Record<string, string> = {
-  'Bull Researcher': 'bullish',
-  'Bear Researcher': 'bearish',
-  'Aggressive Analyst': 'lean-bullish',
-  'Neutral Analyst': 'neutral',
-  'Conservative Analyst': 'lean-bearish',
-}
 
 interface Props {
   stage: Stage
@@ -100,7 +92,7 @@ interface SeatProps {
 function Seat({ node, status, texts, pose, bubbles, facing, side, onSelect }: SeatProps) {
   const person = (
     <>
-      <PixelAvatar pose={pose} tone={ROLE_TONE[node.node]} facing={facing} />
+      <PixelAvatar pose={pose} look={lookOf(node.node)} facing={facing} />
       <span className="office__desk" aria-hidden="true" />
       <span className="office__nameplate">
         <span className="office__lamp" aria-hidden="true" />

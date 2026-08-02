@@ -662,7 +662,12 @@ body {
 }
 
 .pixel-avatar {
-  --pixel-body: var(--tone, var(--text-faint));
+  /* Declared here, not on :root: a custom property is substituted against the
+     element that declares it, so `var(--tone, …)` written at the root would
+     resolve once, globally, and never see a figure's own data-tone. */
+  --pixel-body: var(--tone, hsl(var(--role-hue, 220) var(--pixel-body-sl)));
+  --pixel-hair: hsl(var(--role-hue, 220) var(--pixel-hair-sl));
+  --pixel-accent: var(--accent);
   width: 48px;
   height: 48px;
   image-rendering: pixelated;
