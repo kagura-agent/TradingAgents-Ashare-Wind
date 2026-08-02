@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: []
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: web/frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to VM1
+        env:
+          SSH_KEY: ${{ secrets.VM1_SSH_KEY }}
+          HOST: moltbook.kagura-agent.com
+          USER: azureuser
+          REMOTE_DIR: /home/azureuser/trading-agents
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $USER@$HOST"
+          SCP="scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
+
+          # Sync source (exclude heavy/local stuff)
+          rsync -az --delete \
+            --exclude='.venv' \
+            --exclude='.env' \
+            --exclude='__pycache__' \
+            --exclude='.pytest_cache' \
+            --exclude='.ruff_cache' \
+            --exclude='.cache' \
+            --exclude='node_modules' \
+            --exclude='results' \
+            --exclude='*.db' \
+            --exclude='.claude' \
+            --exclude='.agents' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ $USER@$HOST:$REMOTE_DIR/
+
+          # Install Python deps + restart
+          $SSH "cd $REMOTE_DIR && .venv/bin/pip install -e '.[web]' --quiet && sudo systemctl restart trading-agents"
+
+          # Health check
+          sleep 3
+          $SSH "curl -sf http://localhost:8501/ > /dev/null" || { $SSH "sudo journalctl -u trading-agents --no-pager -n 20"; exit 1; }
+          echo "✅ Deployed $(echo $GITHUB_SHA | cut -c1-7) successfully!"
