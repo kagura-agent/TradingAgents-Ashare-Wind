@@ -1,0 +1,23 @@
+{
+  "date": "2026-08-01",
+  "scope": "project",
+  "lockFile": "/mnt/data/repos/forks/TradingAgents-Ashare-Wind/skills-lock.json",
+  "lockFound": true,
+  "command": "npx skills add https://github.com/Wind-Information-Co-Ltd/wind-skills.git --skill wind-mcp-skill -y",
+  "method": "add",
+  "sourceType": "github",
+  "updatedAt": "2026-08-01T03:21:15.202Z",
+  "status": "success",
+  "finishedAt": "2026-08-01T03:21:15.194Z",
+  "exitCode": 0,
+  "usedFallback": true,
+  "fallbackReason": "remote changed but update did not change local files",
+  "error": null,
+  "remoteHead": "94c00f94a3b6e8b61ebf375ad9c5cb87da34cd12",
+  "remoteChanged": true,
+  "lastAppliedRemoteHead": "94c00f94a3b6e8b61ebf375ad9c5cb87da34cd12",
+  "changed": true,
+  "beforeHash": "f7cfd0a1d7cb2baa5793dea9ac9ed4f36443e1f33a570f93fc4d99f69d3b9e19",
+  "afterHash": "0c12c76265aeb3fe4cc094fdf485e6761eb810961b9954c604d6e56718f9c203",
+  "output": "───────────────────╯\n\u001b[?25l│\n\u001b[1G\u001b[J◒  Installing skills…\u001b[1G\u001b[J◐  Installing skills…\u001b[1G\u001b[J◓  Installing skills…\u001b[1G\u001b[J◑  Installing skills…\u001b[1G\u001b[J◒  Installing skills…\u001b[1G\u001b[J◐  Installing skills…\u001b[1G\u001b[J◓  Installing skills…\u001b[1G\u001b[J◑  Installing skills…\u001b[1G\u001b[J◒  Installing skills….\u001b[1G\u001b[J◐  Installing skills….\u001b[1G\u001b[J◓  Installing skills….\u001b[1G\u001b[J◑  Installing skills….\u001b[1G\u001b[J◒  Installing skills….\u001b[1G\u001b[J◐  Installing skills….\u001b[1G\u001b[J◓  Installing skills….\u001b[1G\u001b[J◑  Installing skills….\u001b[1G\u001b[J◒  Installing skills…..\u001b[1G\u001b[J◐  Installing skills…..\u001b[1G\u001b[J◓  Installing skills…..\u001b[1G\u001b[J◑  Installing skills…..\u001b[1G\u001b[J◒  Installing skills…..\u001b[1G\u001b[J◐  Installing skills…..\u001b[1G\u001b[J◓  Installing skills…..\u001b[1G\u001b[J◑  Installing skills…..\u001b[1G\u001b[J◒  Installing skills…...\u001b[1G\u001b[J◐  Installing skills…...\u001b[1G\u001b[J◓  Installing skills…...\u001b[1G\u001b[J◑  Installing skills…...\u001b[1G\u001b[J◒  Installing skills…...\u001b[1G\u001b[J◐  Installing skills…...\u001b[1G\u001b[J◓  Installing skills…...\u001b[1G\u001b[J◑  Installing skills…...\u001b[1G\u001b[J◒  Installing skills…...\u001b[1G\u001b[J◐  Installing skills…\u001b[1G\u001b[J◓  Installing skills…\u001b[1G\u001b[J◑  Installing skills…\u001b[1G\u001b[J◒  Installing skills…\u001b[1G\u001b[J◐  Installing skills…\u001b[1G\u001b[J◓  Installing skills…\u001b[1G\u001b[J◑  Installing skills…\u001b[1G\u001b[J◒  Installing skills…\u001b[1G\u001b[J◐  Installing skills….\u001b[1G\u001b[J◓  Installing skills….\u001b[1G\u001b[J◑  Installing skills….\u001b[1G\u001b[J◒  Installing skills….\u001b[1G\u001b[J◇  Installation complete\n\u001b[?25h\n│\n◇  Installed 1 skill ──────────────────────────────────────────────────────╮\n│                                                                          │\n│  ✓ ./.agents/skills/wind-mcp-skill                                       │\n│    universal: Codex, Gemini CLI, GitHub Copilot, OpenCode, Amp +12 more  │\n│    symlinked: Claude Code                                                │\n│                                                                          │\n├──────────────────────────────────────────────────────────────────────────╯\n\n│\n└  Done!  Review skills before use; they run with full agent permissions."
+}

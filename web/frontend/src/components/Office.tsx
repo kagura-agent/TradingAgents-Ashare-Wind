@@ -80,7 +80,7 @@ function Bubbles({ texts, summary, status, limit }: BubbleProps) {
         <p className="office__bubble">{summary}</p>
       ) : (
         shown.map((text, i) => (
-          <p key={hidden + i} className="office__bubble">
+          <p key={hidden + i} className="office__bubble" data-fallback="true">
             {excerpt(text, BUBBLE_CHARS)}
           </p>
         ))
