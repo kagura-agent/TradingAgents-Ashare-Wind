@@ -186,7 +186,8 @@ class AnalysisEventDeriver:
                 "content": content,
                 "summary": chunk.get(f"{key}_summary") or "",
             })
-            self._exit(out)
+            # Do NOT _exit here — let the analyst stay "running" so the avatar
+            # animates until the next node starts (same pattern as debaters).
 
     def _feed_investment_debate(self, chunk: dict, out: list[dict]) -> None:
         state = chunk.get("investment_debate_state")
