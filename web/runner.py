@@ -130,14 +130,14 @@ def stream_analysis(ta: Any, ticker: str, trade_date: str,
         emit({"type": "status", "status": "running", "message": "分析引擎已就绪，开始执行…"})
 
         deriver = AnalysisEventDeriver()
-        final_state: dict[str, Any] = {}
+        final_state: dict[str, Any] = dict(init_state)  # Pre-populate with initial state
         for chunk in ta.graph.stream(init_state, **args):
             # stream_mode="updates": chunk is {node_name: state_delta}
             if isinstance(chunk, dict):
                 for node_name, state_update in chunk.items():
                     if isinstance(state_update, dict):
                         final_state.update(state_update)
-                        for event in deriver.feed(state_update, active_node=node_name):
+                        for event in deriver.feed(final_state, active_node=node_name):
                             emit(event)
         for event in deriver.finalize():
             emit(event)
