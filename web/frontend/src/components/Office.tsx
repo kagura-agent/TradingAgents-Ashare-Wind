@@ -18,7 +18,7 @@
  */
 
 import type { NodeStatus } from '../lib/analysisReducer'
-import { excerpt } from '../lib/excerpt'
+import { smartExcerpt } from '../lib/excerpt'
 import { nodeTexts } from '../lib/nodeContent'
 import {
   NODE_STATUS_TEXT,
@@ -78,7 +78,7 @@ function Bubbles({ texts, status, limit }: BubbleProps) {
       ) : (
         shown.map((text, i) => (
           <p key={hidden + i} className="office__bubble">
-            {excerpt(text, BUBBLE_CHARS)}
+            {smartExcerpt(text, BUBBLE_CHARS)}
           </p>
         ))
       )}
