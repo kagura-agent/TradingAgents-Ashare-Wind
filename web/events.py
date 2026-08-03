@@ -66,6 +66,25 @@ REPORT_KEYS: dict[str, str] = {
     "industry_report": "Industry Chain Analyst",
 }
 
+# Tool name -> the analyst that owns it. Used to detect which analyst is
+# actively working before its report appears (tool-calling phase).
+_TOOL_TO_ANALYST: dict[str, str] = {
+    "get_stock_data": "Market Analyst",
+    "get_indicators": "Market Analyst",
+    "get_verified_market_snapshot": "Market Analyst",
+    "get_news": "News Analyst",
+    "get_earnings_preannouncements": "News Analyst",
+    "get_global_news": "News Analyst",
+    "get_insider_transactions": "News Analyst",
+    "get_macro_indicators": "News Analyst",
+    "get_fundamentals": "Fundamentals Analyst",
+    "get_balance_sheet": "Fundamentals Analyst",
+    "get_cashflow": "Fundamentals Analyst",
+    "get_income_statement": "Fundamentals Analyst",
+    "get_periodic_reports": "Annual Report Analyst",
+    "get_industry_chain_context": "Industry Chain Analyst",
+}
+
 # Risk-debate history key -> the node that appends to it.
 _RISK_SPEAKERS: tuple[tuple[str, str], ...] = (
     ("aggressive_history", "Aggressive Analyst"),
@@ -116,6 +135,10 @@ class AnalysisEventDeriver:
         self._had_trader = False
         self._had_decision = False
         self._active_node: str | None = None
+        # Track messages length to detect new tool calls.
+        self._prev_messages_len: int = 0
+        # Analysts already marked as started (via tool-call detection).
+        self._started_analysts: set[str] = set()
 
     # -- helpers ----------------------------------------------------------
     def _enter(self, node: str, out: list[dict]) -> None:
@@ -135,6 +158,36 @@ class AnalysisEventDeriver:
         out.append({"type": "node_complete", "node": self._active_node,
                     "label": label_for(self._active_node)})
         self._active_node = None
+
+    def _detect_active_analyst(self, chunk: dict, out: list[dict]) -> None:
+        """Fire node_start when we see new tool_calls in messages.
+
+        Analysts call tools before producing their report. By detecting tool
+        calls we can mark the analyst as 'running' while it gathers data,
+        instead of waiting until the report appears.
+        """
+        messages = chunk.get("messages")
+        if not isinstance(messages, list):
+            return
+
+        # Only look at messages we haven't processed yet.
+        new_msgs = messages[self._prev_messages_len:]
+        self._prev_messages_len = len(messages)
+
+        for msg in new_msgs:
+            # LangChain AIMessage with tool_calls
+            tool_calls = getattr(msg, "tool_calls", None) or []
+            if not tool_calls:
+                # Also check dict-style messages
+                if isinstance(msg, dict):
+                    tool_calls = msg.get("tool_calls", [])
+            for tc in tool_calls:
+                name = tc.get("name", "") if isinstance(tc, dict) else getattr(tc, "name", "")
+                analyst = _TOOL_TO_ANALYST.get(name)
+                if analyst and analyst not in self._started_analysts:
+                    self._started_analysts.add(analyst)
+                    self._enter(analyst, out)
+                    break  # One node_start per chunk is enough
 
     def _new_text(self, key: str, history: str) -> str | None:
         """Return the not-yet-emitted tail of a monotonically growing history.
@@ -157,6 +210,11 @@ class AnalysisEventDeriver:
         if not isinstance(chunk, dict):
             return out
 
+        # Detect analysts starting work via tool calls in messages BEFORE
+        # their report appears. This makes the avatar animate while the
+        # analyst is calling tools, not only after the report is done.
+        self._detect_active_analyst(chunk, out)
+
         self._feed_reports(chunk, out)
         self._feed_investment_debate(chunk, out)
         self._feed_trader(chunk, out)
@@ -177,7 +235,10 @@ class AnalysisEventDeriver:
             if not content or key in self._seen_reports:
                 continue
             self._seen_reports.add(key)
-            self._enter(node, out)
+            # If this analyst was already started via tool-call detection,
+            # just emit the report and close it. Otherwise enter+report.
+            if node not in self._started_analysts:
+                self._enter(node, out)
             out.append({
                 "type": "report",
                 "node": node,
@@ -186,8 +247,8 @@ class AnalysisEventDeriver:
                 "content": content,
                 "summary": chunk.get(f"{key}_summary") or "",
             })
-            # Do NOT _exit here — let the analyst stay "running" so the avatar
-            # animates until the next node starts (same pattern as debaters).
+            # Report done — close the node.
+            self._exit(out)
 
     def _feed_investment_debate(self, chunk: dict, out: list[dict]) -> None:
         state = chunk.get("investment_debate_state")
