@@ -2,6 +2,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_aggressive_debator(llm):
@@ -41,6 +42,7 @@ Here is the current conversation history: {history} Here are the last arguments 
 Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
+        _, summary = extract_structured_summary(llm, response.content, "Aggressive Analyst")
 
         argument = f"Aggressive Analyst: {response.content}"
 
@@ -49,6 +51,9 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
             "aggressive_history": aggressive_history + "\n" + argument,
             "conservative_history": risk_debate_state.get("conservative_history", ""),
             "neutral_history": risk_debate_state.get("neutral_history", ""),
+            "aggressive_summary": summary,
+            "conservative_summary": risk_debate_state.get("conservative_summary", ""),
+            "neutral_summary": risk_debate_state.get("neutral_summary", ""),
             "latest_speaker": "Aggressive",
             "current_aggressive_response": argument,
             "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),

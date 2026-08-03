@@ -6,6 +6,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_periodic_reports,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_annual_report_analyst(llm):
@@ -51,12 +52,14 @@ def create_annual_report_analyst(llm):
         result = chain.invoke(state["messages"])
 
         report = ""
+        summary = ""
         if len(result.tool_calls) == 0:
-            report = result.content
+            report, summary = extract_structured_summary(llm, result.content, "Annual Report Analyst")
 
         return {
             "messages": [result],
             "annual_report": report,
+            "annual_report_summary": summary,
         }
 
     return annual_report_analyst_node

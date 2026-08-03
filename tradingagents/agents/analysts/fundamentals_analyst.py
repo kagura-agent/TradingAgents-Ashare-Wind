@@ -9,6 +9,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_periodic_reports,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_fundamentals_analyst(llm):
@@ -66,13 +67,15 @@ def create_fundamentals_analyst(llm):
         result = chain.invoke(state["messages"])
 
         report = ""
+        summary = ""
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            report, summary = extract_structured_summary(llm, result.content, "Fundamentals Analyst")
 
         return {
             "messages": [result],
             "fundamentals_report": report,
+            "fundamentals_report_summary": summary,
         }
 
     return fundamentals_analyst_node

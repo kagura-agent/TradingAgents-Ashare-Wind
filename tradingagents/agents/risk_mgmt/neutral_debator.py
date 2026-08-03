@@ -2,6 +2,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_neutral_debator(llm):
@@ -41,6 +42,7 @@ Here is the current conversation history: {history} Here is the last response fr
 Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
+        _, summary = extract_structured_summary(llm, response.content, "Neutral Analyst")
 
         argument = f"Neutral Analyst: {response.content}"
 
@@ -49,6 +51,9 @@ Engage actively by analyzing both sides critically, addressing weaknesses in the
             "aggressive_history": risk_debate_state.get("aggressive_history", ""),
             "conservative_history": risk_debate_state.get("conservative_history", ""),
             "neutral_history": neutral_history + "\n" + argument,
+            "aggressive_summary": risk_debate_state.get("aggressive_summary", ""),
+            "conservative_summary": risk_debate_state.get("conservative_summary", ""),
+            "neutral_summary": summary,
             "latest_speaker": "Neutral",
             "current_aggressive_response": risk_debate_state.get(
                 "current_aggressive_response", ""

@@ -7,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_verified_market_snapshot,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_market_analyst(llm):
@@ -85,13 +86,15 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
         result = chain.invoke(state["messages"])
 
         report = ""
+        summary = ""
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            report, summary = extract_structured_summary(llm, result.content, "Market Analyst")
 
         return {
             "messages": [result],
             "market_report": report,
+            "market_report_summary": summary,
         }
 
     return market_analyst_node

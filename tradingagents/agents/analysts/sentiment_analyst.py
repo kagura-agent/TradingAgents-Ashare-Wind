@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.schemas import SentimentReport, render_sentiment_report
+from tradingagents.agents.schemas import SentimentReport, render_sentiment_report, summary_from_sentiment
 from tradingagents.agents.utils.agent_utils import (
     get_earnings_preannouncements,
     get_global_news,
@@ -72,17 +72,19 @@ def create_sentiment_analyst(llm):
         # data is already in the prompt.
         formatted_messages = prompt.format_messages(messages=state["messages"])
 
-        report_text = invoke_structured_or_freetext(
+        report_text, summary = invoke_structured_or_freetext(
             structured_llm,
             llm,
             formatted_messages,
             render_sentiment_report,
             "Sentiment Analyst",
+            summarize=summary_from_sentiment,
         )
 
         return {
             "messages": [AIMessage(content=report_text)],
             "sentiment_report": report_text,
+            "sentiment_report_summary": summary,
         }
 
     return sentiment_analyst_node

@@ -21,6 +21,7 @@ export interface DebateEntry {
   speaker: string
   label: string
   content: string
+  summary?: string
 }
 
 export interface ReportEntry {
@@ -28,6 +29,7 @@ export interface ReportEntry {
   node: string
   label: string
   content: string
+  summary?: string
 }
 
 export interface AnalysisState {
@@ -39,10 +41,14 @@ export interface AnalysisState {
   reports: Record<string, ReportEntry>
   investmentDebate: DebateEntry[]
   investmentJudge: string | null
+  investmentJudgeSummary: string | null
   traderPlan: string | null
+  traderPlanSummary: string | null
   riskDebate: DebateEntry[]
   riskJudge: string | null
+  riskJudgeSummary: string | null
   decision: string | null
+  decisionSummary: string | null
   signal: string | null
   error: string | null
 }
@@ -55,10 +61,14 @@ export const initialAnalysisState: AnalysisState = {
   reports: {},
   investmentDebate: [],
   investmentJudge: null,
+  investmentJudgeSummary: null,
   traderPlan: null,
+  traderPlanSummary: null,
   riskDebate: [],
   riskJudge: null,
+  riskJudgeSummary: null,
   decision: null,
+  decisionSummary: null,
   signal: null,
   error: null,
 }
@@ -110,6 +120,7 @@ function applyEvent(state: AnalysisState, event: AnalysisEvent): AnalysisState {
             node: event.node,
             label: event.label,
             content: event.content,
+            summary: event.summary,
           },
         },
       }
@@ -119,6 +130,7 @@ function applyEvent(state: AnalysisState, event: AnalysisEvent): AnalysisState {
         speaker: event.speaker,
         label: event.label,
         content: event.content,
+        summary: event.summary,
       }
       return event.phase === 'risk'
         ? { ...state, riskDebate: [...state.riskDebate, entry] }
@@ -127,14 +139,14 @@ function applyEvent(state: AnalysisState, event: AnalysisEvent): AnalysisState {
 
     case 'debate_decision':
       return event.phase === 'risk'
-        ? { ...state, riskJudge: event.content }
-        : { ...state, investmentJudge: event.content }
+        ? { ...state, riskJudge: event.content, riskJudgeSummary: event.summary || null }
+        : { ...state, investmentJudge: event.content, investmentJudgeSummary: event.summary || null }
 
     case 'trader_plan':
-      return { ...state, traderPlan: event.content }
+      return { ...state, traderPlan: event.content, traderPlanSummary: event.summary || null }
 
     case 'decision':
-      return { ...state, decision: event.content }
+      return { ...state, decision: event.content, decisionSummary: event.summary || null }
 
     case 'complete':
       return {

@@ -5,6 +5,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_industry_chain_analyst(llm):
@@ -46,12 +47,14 @@ def create_industry_chain_analyst(llm):
         result = chain.invoke(state["messages"])
 
         report = ""
+        summary = ""
         if len(result.tool_calls) == 0:
-            report = result.content
+            report, summary = extract_structured_summary(llm, result.content, "Industry Chain Analyst")
 
         return {
             "messages": [result],
             "industry_report": report,
+            "industry_report_summary": summary,
         }
 
     return industry_chain_analyst_node

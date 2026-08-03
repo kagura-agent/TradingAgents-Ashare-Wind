@@ -17,15 +17,27 @@ export interface AnalysisResult {
   fundamentals_report: string
   annual_report: string
   industry_report: string
-  investment_debate: { bull_history: string; bear_history: string; judge_decision: string }
+  market_report_summary?: string
+  sentiment_report_summary?: string
+  news_report_summary?: string
+  fundamentals_report_summary?: string
+  annual_report_summary?: string
+  industry_report_summary?: string
+  investment_debate: { bull_history: string; bear_history: string; bull_summary?: string; bear_summary?: string; judge_decision: string; judge_decision_summary?: string }
   trader_plan: string
+  trader_plan_summary?: string
   risk_debate: {
     aggressive_history: string
     conservative_history: string
     neutral_history: string
+    aggressive_summary?: string
+    conservative_summary?: string
+    neutral_summary?: string
     judge_decision: string
+    judge_decision_summary?: string
   }
   final_decision: string
+  final_decision_summary?: string
   signal: string
 }
 

@@ -1002,19 +1002,17 @@ body {
   font-size: 13px;
 }
 
-/* Two lines tall whether the text fills them or not. A bubble sized to its own
-   text would resize the room every time a line of streamed output arrived, and
-   with a bubble over every speaker the whole floor would jump on each update.
-   The height has to come out at a whole number of line boxes — box-sizing is
-   border-box, so padding and the 1px border are in it — or the second line is
-   sliced through the middle. `-webkit-line-clamp` adds the ellipsis where the
-   browser honours it; the height is what guarantees the clean cut. */
+/* Compact bubbles show summary text in full. Only clamp fallback (non-summary)
+   bubbles to avoid layout jumps from long streamed markdown. */
 .office[data-compact] .office__bubble {
+  overflow: hidden;
+}
+
+.office[data-compact] .office__bubble[data-fallback] {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   height: calc(3em + 2 * var(--space-2) + 2px);
-  overflow: hidden;
 }
 
 .office[data-compact][data-shape='parallel'] .office__floor,

@@ -15,10 +15,14 @@ export interface ResultView {
   reports: (ReportEntry & { title: string })[]
   investmentDebate: DebateEntry[]
   investmentJudge: string | null
+  investmentJudgeSummary: string | null
   traderPlan: string | null
+  traderPlanSummary: string | null
   riskDebate: DebateEntry[]
   riskJudge: string | null
+  riskJudgeSummary: string | null
   decision: string | null
+  decisionSummary: string | null
   signal: string | null
 }
 
@@ -26,10 +30,14 @@ export const EMPTY_VIEW: ResultView = {
   reports: [],
   investmentDebate: [],
   investmentJudge: null,
+  investmentJudgeSummary: null,
   traderPlan: null,
+  traderPlanSummary: null,
   riskDebate: [],
   riskJudge: null,
+  riskJudgeSummary: null,
   decision: null,
+  decisionSummary: null,
   signal: null,
 }
 
@@ -46,16 +54,20 @@ export function viewFromState(state: AnalysisState): ResultView {
     reports: orderReports(state.reports),
     investmentDebate: state.investmentDebate,
     investmentJudge: state.investmentJudge,
+    investmentJudgeSummary: state.investmentJudgeSummary,
     traderPlan: state.traderPlan,
+    traderPlanSummary: state.traderPlanSummary,
     riskDebate: state.riskDebate,
     riskJudge: state.riskJudge,
+    riskJudgeSummary: state.riskJudgeSummary,
     decision: state.decision,
+    decisionSummary: state.decisionSummary,
     signal: state.signal,
   }
 }
 
-function entry(speaker: string, label: string, content: string): DebateEntry[] {
-  return content ? [{ speaker, label, content }] : []
+function entry(speaker: string, label: string, content: string, summary?: string): DebateEntry[] {
+  return content ? [{ speaker, label, content, summary }] : []
 }
 
 export function viewFromHistory(result: AnalysisResult): ResultView {
@@ -63,27 +75,30 @@ export function viewFromHistory(result: AnalysisResult): ResultView {
   for (const section of REPORT_SECTIONS) {
     const content = (result as unknown as Record<string, string>)[section.key]
     if (content) {
-      reports[section.key] = { key: section.key, node: section.key, label: section.title, content }
+      const summary = (result as unknown as Record<string, string>)[`${section.key}_summary`] || undefined
+      reports[section.key] = { key: section.key, node: section.key, label: section.title, content, summary }
     }
   }
 
   return {
     reports: orderReports(reports),
-    // A stored run keeps whole histories rather than per-turn slices, so each
-    // speaker collapses to a single entry.
     investmentDebate: [
-      ...entry('Bull Researcher', '多头研究员', result.investment_debate.bull_history),
-      ...entry('Bear Researcher', '空头研究员', result.investment_debate.bear_history),
+      ...entry('Bull Researcher', '多头研究员', result.investment_debate.bull_history, result.investment_debate.bull_summary),
+      ...entry('Bear Researcher', '空头研究员', result.investment_debate.bear_history, result.investment_debate.bear_summary),
     ],
     investmentJudge: result.investment_debate.judge_decision || null,
+    investmentJudgeSummary: result.investment_debate.judge_decision_summary || null,
     traderPlan: result.trader_plan || null,
+    traderPlanSummary: result.trader_plan_summary || null,
     riskDebate: [
-      ...entry('Aggressive Analyst', '激进风控', result.risk_debate.aggressive_history),
-      ...entry('Conservative Analyst', '保守风控', result.risk_debate.conservative_history),
-      ...entry('Neutral Analyst', '中性风控', result.risk_debate.neutral_history),
+      ...entry('Aggressive Analyst', '激进风控', result.risk_debate.aggressive_history, result.risk_debate.aggressive_summary),
+      ...entry('Conservative Analyst', '保守风控', result.risk_debate.conservative_history, result.risk_debate.conservative_summary),
+      ...entry('Neutral Analyst', '中性风控', result.risk_debate.neutral_history, result.risk_debate.neutral_summary),
     ],
     riskJudge: result.risk_debate.judge_decision || null,
+    riskJudgeSummary: result.risk_debate.judge_decision_summary || null,
     decision: result.final_decision || null,
+    decisionSummary: result.final_decision_summary || null,
     signal: result.signal || null,
   }
 }

@@ -9,6 +9,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_macro_indicators,
     get_news,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_news_analyst(llm):
@@ -59,13 +60,15 @@ def create_news_analyst(llm):
         result = chain.invoke(state["messages"])
 
         report = ""
+        summary = ""
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            report, summary = extract_structured_summary(llm, result.content, "News Analyst")
 
         return {
             "messages": [result],
             "news_report": report,
+            "news_report_summary": summary,
         }
 
     return news_analyst_node
