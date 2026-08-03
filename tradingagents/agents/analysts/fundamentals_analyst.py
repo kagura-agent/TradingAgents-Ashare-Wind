@@ -1,8 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
-    SUMMARY_INSTRUCTION,
-    extract_summary,
     get_balance_sheet,
     get_cashflow,
     get_fundamentals,
@@ -11,6 +9,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_periodic_reports,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_fundamentals_analyst(llm):
@@ -37,7 +36,6 @@ def create_fundamentals_analyst(llm):
             "Clearly separate verified Wind data from hypotheses and explicitly flag DATA_UNAVAILABLE gaps instead of filling them in."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
             + " Use the available tools: `get_fundamentals` for company profile, core financials, valuation, holders, and industry context; `get_periodic_reports` for annual/semiannual/quarterly report evidence; `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements. If one sub-report is unavailable, continue with the available Wind evidence and lower confidence."
-            + SUMMARY_INSTRUCTION
             + get_language_instruction(),
         )
 
@@ -72,7 +70,7 @@ def create_fundamentals_analyst(llm):
         summary = ""
 
         if len(result.tool_calls) == 0:
-            report, summary = extract_summary(result.content)
+            report, summary = extract_structured_summary(llm, result.content, "Fundamentals Analyst")
 
         return {
             "messages": [result],

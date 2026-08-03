@@ -87,3 +87,33 @@ def invoke_structured_or_freetext(
     if summarize is not None:
         return response.content, ""
     return response.content
+
+
+def extract_structured_summary(
+    llm: Any,
+    raw_report: str,
+    agent_name: str,
+) -> tuple[str, str]:
+    """Extract a structured summary from a raw analyst report.
+
+    Makes one lightweight structured call to extract the summary.
+    Returns (report, summary). If structured extraction fails,
+    returns (raw_report, "").
+    """
+    from tradingagents.agents.schemas import AnalystReport
+
+    structured = bind_structured(llm, AnalystReport, agent_name)
+    if structured is None:
+        return raw_report, ""
+
+    try:
+        result = structured.invoke(
+            f"Extract the report and a one-sentence summary from this analyst report. "
+            f"Keep the full report text intact in the 'report' field. "
+            f"Write a concise one-sentence conclusion for the 'summary' field.\n\n{raw_report}"
+        )
+        if result is None:
+            return raw_report, ""
+        return result.report, result.summary
+    except Exception:
+        return raw_report, ""

@@ -1,8 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
-    SUMMARY_INSTRUCTION,
-    extract_summary,
     get_earnings_preannouncements,
     get_global_news,
     get_insider_transactions,
@@ -11,6 +9,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_macro_indicators,
     get_news,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_news_analyst(llm):
@@ -31,7 +30,6 @@ def create_news_analyst(llm):
         system_message = (
             f"You are an A-share news and policy researcher. Analyze recent Wind-sourced company news, exchange announcements, regulatory disclosures, earnings preannouncements/preliminary results, macro policy, industry events, and market-wide A-share themes that are relevant to {asset_label} trading. Use get_news(ticker, start_date, end_date) for company-specific Wind news plus announcements, get_earnings_preannouncements(ticker, curr_date, look_back_days) for A-share earnings previews, alerts, revisions, and preliminary results, get_global_news(curr_date, look_back_days, limit) for A-share market, policy, and industry headlines, get_insider_transactions(ticker, curr_date) for financing/short-selling, Dragon Tiger List, limit-up/limit-down, shareholder actions, and company events (curr_date is required to avoid look-ahead bias in backtesting), and get_macro_indicators(indicator, curr_date, look_back_days) for China macro or industry indicator context from Wind EDB. Do not discuss FRED, Yahoo Finance, Polymarket, Fed prediction markets, Reddit, or StockTwits. Distinguish confirmed company disclosures from media reports and market rumors, and separate company-specific catalysts from sector/theme-driven noise. Treat earnings preannouncements as high-priority catalysts: extract profit range, YoY range, implied single-quarter performance, whether it beats or misses market expectations when evidence exists, and what later formal report must verify. Provide specific, actionable insights with supporting evidence for A-share trading."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-            + SUMMARY_INSTRUCTION
             + get_language_instruction()
         )
 
@@ -65,7 +63,7 @@ def create_news_analyst(llm):
         summary = ""
 
         if len(result.tool_calls) == 0:
-            report, summary = extract_summary(result.content)
+            report, summary = extract_structured_summary(llm, result.content, "News Analyst")
 
         return {
             "messages": [result],

@@ -54,27 +54,6 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-SUMMARY_INSTRUCTION = (
-    "\n\nAfter the full report, write exactly one final line in this format: "
-    "SUMMARY: <your one-sentence conclusion with action recommendation>"
-)
-
-
-def extract_summary(text: str) -> tuple[str, str]:
-    """Extract and remove the SUMMARY line from agent output.
-
-    Returns ``(clean_text, summary)``.  If no SUMMARY line is found the
-    full text is returned unchanged with an empty summary string.
-    """
-    import re
-    match = re.search(r"^SUMMARY:\s*(.+)$", text, re.MULTILINE)
-    if match:
-        summary = match.group(1).strip()
-        clean = text[: match.start()].rstrip()
-        return clean, summary
-    return text, ""
-
-
 def get_language_instruction() -> str:
     """Return a prompt instruction for the configured output language.
 

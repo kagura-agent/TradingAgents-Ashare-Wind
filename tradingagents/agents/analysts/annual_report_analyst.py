@@ -1,13 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
-    SUMMARY_INSTRUCTION,
-    extract_summary,
     get_earnings_preannouncements,
     get_instrument_context_from_state,
     get_language_instruction,
     get_periodic_reports,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_annual_report_analyst(llm):
@@ -27,7 +26,6 @@ def create_annual_report_analyst(llm):
             "Then analyze: business structure, revenue and profit trend, margin trend, cash-flow quality, free cash flow, capital expenditure, construction-in-progress or capacity expansion, receivables, inventory, contract liabilities, debt and liquidity, R&D, customer/supplier concentration, shareholder or governance signals, management discussion tone, risk warnings, accounting or impairment signals, earnings preannouncement implications, and changes versus prior periods. "
             "Clearly separate Wind-retrieved facts from your interpretation. If a report period or statement detail is missing, write DATA_UNAVAILABLE instead of estimating it. "
             "End with three lists: evidence supporting a bullish thesis, evidence supporting a bearish thesis, and follow-up verification items for the research team."
-            + SUMMARY_INSTRUCTION
             + get_language_instruction()
         )
 
@@ -56,7 +54,7 @@ def create_annual_report_analyst(llm):
         report = ""
         summary = ""
         if len(result.tool_calls) == 0:
-            report, summary = extract_summary(result.content)
+            report, summary = extract_structured_summary(llm, result.content, "Annual Report Analyst")
 
         return {
             "messages": [result],

@@ -1,12 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
-    SUMMARY_INSTRUCTION,
-    extract_summary,
     get_industry_chain_context,
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_industry_chain_analyst(llm):
@@ -22,7 +21,6 @@ def create_industry_chain_analyst(llm):
             "Focus on: industry positioning, upstream raw materials or constraints, downstream demand, policy support or regulatory risk, sector-theme heat, peer comparison, overseas mapping, customer/industry concentration, capex cycle, and whether current company performance is mostly company-specific or industry-beta driven. "
             "Separate confirmed Wind evidence from interpretation. If peer, policy, or supply-chain data is unavailable, mark it as DATA_UNAVAILABLE rather than guessing. "
             "End with a table covering: industry driver, direction, evidence, confidence, impact on the stock, and what to verify next."
-            + SUMMARY_INSTRUCTION
             + get_language_instruction()
         )
 
@@ -51,7 +49,7 @@ def create_industry_chain_analyst(llm):
         report = ""
         summary = ""
         if len(result.tool_calls) == 0:
-            report, summary = extract_summary(result.content)
+            report, summary = extract_structured_summary(llm, result.content, "Industry Chain Analyst")
 
         return {
             "messages": [result],

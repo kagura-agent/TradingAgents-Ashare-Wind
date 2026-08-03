@@ -275,6 +275,34 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Analyst Report (free-text analysts: market, news, fundamentals, etc.)
+# ---------------------------------------------------------------------------
+
+
+class AnalystReport(BaseModel):
+    """Structured output for analyst nodes that use tool-calling.
+
+    After the tool-calling loop finishes and the analyst has gathered all data,
+    a second structured call extracts the report and summary from the raw output.
+    """
+
+    report: str = Field(
+        description="The full detailed analyst report in markdown format, including all analysis, evidence, and tables."
+    )
+    summary: str = Field(
+        description="One sentence conclusion with action recommendation, e.g. 'HOLD — 短期震荡等待突破信号' or 'Mildly Bullish — margin financing up 12% WoW'"
+    )
+
+
+def render_analyst_report(report: AnalystReport) -> str:
+    return report.report
+
+
+def summary_from_analyst_report(report: AnalystReport) -> str:
+    return report.summary
+
+
 class SentimentBand(str, Enum):
     """Discrete sentiment direction produced by the Sentiment Analyst.
 
