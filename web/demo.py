@@ -18,7 +18,6 @@ carries a canonical 5-tier rating.
 
 from __future__ import annotations
 
-import copy
 import time
 from typing import Any
 
@@ -142,54 +141,38 @@ _FINAL_DECISION = """\
 """
 
 
-def demo_chunks(ticker: str, trade_date: str) -> list[dict[str, Any]]:
-    """Full-state snapshots imitating one complete graph run.
+def demo_chunks(ticker: str, trade_date: str) -> list[tuple[str, dict[str, Any]]]:
+    """Per-node state deltas imitating ``stream_mode="updates"`` output.
 
-    Each snapshot is cumulative, as ``stream_mode="values"`` guarantees.
+    Each entry is ``(node_name, state_delta)`` — the same shape the real runner
+    unpacks from ``{node_name: state_delta}`` chunks.
     """
-    state: dict[str, Any] = {
-        "company_of_interest": ticker,
-        "trade_date": trade_date,
-        "investment_debate_state": {"bull_history": "", "bear_history": "", "judge_decision": ""},
-        "risk_debate_state": {
-            "aggressive_history": "", "conservative_history": "",
-            "neutral_history": "", "judge_decision": "",
-        },
-    }
-    out: list[dict[str, Any]] = []
+    out: list[tuple[str, dict[str, Any]]] = []
 
-    def step(**changes: Any) -> None:
-        for key, value in changes.items():
-            if isinstance(value, dict) and isinstance(state.get(key), dict):
-                state[key] = {**state[key], **value}
-            else:
-                state[key] = value
-        out.append(copy.deepcopy(state))
-
-    step(market_report=_MARKET_REPORT)
-    step(sentiment_report=_SENTIMENT_REPORT)
-    step(news_report=_NEWS_REPORT)
-    step(fundamentals_report=_FUNDAMENTALS_REPORT)
-    step(annual_report=_ANNUAL_REPORT)
-    step(industry_report=_INDUSTRY_REPORT)
+    out.append(("Market Analyst", {"market_report": _MARKET_REPORT}))
+    out.append(("Sentiment Analyst", {"sentiment_report": _SENTIMENT_REPORT}))
+    out.append(("News Analyst", {"news_report": _NEWS_REPORT}))
+    out.append(("Fundamentals Analyst", {"fundamentals_report": _FUNDAMENTALS_REPORT}))
+    out.append(("Annual Report Analyst", {"annual_report": _ANNUAL_REPORT}))
+    out.append(("Industry Chain Analyst", {"industry_report": _INDUSTRY_REPORT}))
 
     bull, bear = _BULL_R1, _BEAR_R1
-    step(investment_debate_state={"bull_history": bull})
-    step(investment_debate_state={"bear_history": bear})
+    out.append(("Bull Researcher", {"investment_debate_state": {"bull_history": bull}}))
+    out.append(("Bear Researcher", {"investment_debate_state": {"bear_history": bear}}))
     bull += "\n\n" + _BULL_R2
     bear += "\n\n" + _BEAR_R2
-    step(investment_debate_state={"bull_history": bull})
-    step(investment_debate_state={"bear_history": bear})
-    step(investment_debate_state={"judge_decision": _INVEST_JUDGE})
+    out.append(("Bull Researcher", {"investment_debate_state": {"bull_history": bull}}))
+    out.append(("Bear Researcher", {"investment_debate_state": {"bear_history": bear}}))
+    out.append(("Research Manager", {"investment_debate_state": {"judge_decision": _INVEST_JUDGE}}))
 
-    step(trader_investment_plan=_TRADER_PLAN)
+    out.append(("Trader", {"trader_investment_plan": _TRADER_PLAN}))
 
-    step(risk_debate_state={"aggressive_history": _RISK_AGG})
-    step(risk_debate_state={"conservative_history": _RISK_CON})
-    step(risk_debate_state={"neutral_history": _RISK_NEU})
-    step(risk_debate_state={"judge_decision": _RISK_JUDGE})
+    out.append(("Aggressive Analyst", {"risk_debate_state": {"aggressive_history": _RISK_AGG}}))
+    out.append(("Conservative Analyst", {"risk_debate_state": {"conservative_history": _RISK_CON}}))
+    out.append(("Neutral Analyst", {"risk_debate_state": {"neutral_history": _RISK_NEU}}))
+    out.append(("Portfolio Manager", {"risk_debate_state": {"judge_decision": _RISK_JUDGE}}))
 
-    step(final_trade_decision=_FINAL_DECISION)
+    out.append(("Portfolio Manager", {"final_trade_decision": _FINAL_DECISION}))
     return out
 
 
@@ -216,11 +199,11 @@ def run_demo_analysis(job_id: str, ticker: str, trade_date: str, registry: Any, 
 
     deriver = AnalysisEventDeriver()
     final_state: dict[str, Any] = {}
-    for chunk in demo_chunks(ticker, trade_date):
+    for node_name, state_delta in demo_chunks(ticker, trade_date):
         if step_delay:
             time.sleep(step_delay)
-        final_state.update(chunk)
-        for event in deriver.feed(chunk):
+        final_state.update(state_delta)
+        for event in deriver.feed(state_delta, active_node=node_name):
             emit(event)
     for event in deriver.finalize():
         emit(event)

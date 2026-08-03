@@ -6,6 +6,11 @@ This is deliberately the only place in ``web/`` that knows about
 ``propagate`` returns only the final state — it has no hook for observing node
 transitions as they happen, which is the entire point of the live UI.
 
+The graph is streamed with ``stream_mode="updates"``, where each chunk is
+``{node_name: state_delta}``. This gives us an authoritative signal for which
+node just ran, enabling correct timing of node_start/node_complete events
+without heuristics.
+
 That duplication is a liability, so the checkpoint lifecycle here is kept
 deliberately identical to ``propagate``'s, including the parts easy to forget:
 
@@ -127,13 +132,13 @@ def stream_analysis(ta: Any, ticker: str, trade_date: str,
         deriver = AnalysisEventDeriver()
         final_state: dict[str, Any] = {}
         for chunk in ta.graph.stream(init_state, **args):
-            # stream_mode="values" yields the full accumulated state, so the
-            # last chunk alone would suffice — but merging every chunk keeps
-            # this robust if a future chunk omits an untouched key.
+            # stream_mode="updates": chunk is {node_name: state_delta}
             if isinstance(chunk, dict):
-                final_state.update(chunk)
-            for event in deriver.feed(chunk):
-                emit(event)
+                for node_name, state_update in chunk.items():
+                    if isinstance(state_update, dict):
+                        final_state.update(state_update)
+                        for event in deriver.feed(state_update, active_node=node_name):
+                            emit(event)
         for event in deriver.finalize():
             emit(event)
 

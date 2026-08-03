@@ -1,9 +1,9 @@
-"""Event derivation from LangGraph state snapshots.
+"""Event derivation from LangGraph state updates.
 
-``get_graph_args()`` streams with ``stream_mode="values"``, so every chunk is
-the *complete accumulated state*. The single property that makes the UI feed
-correct is therefore idempotence: re-seeing state that has already been
-reported must produce nothing. Most of what follows pins that.
+``get_graph_args()`` streams with ``stream_mode="updates"``, so every chunk is
+a per-node state delta. The runner unpacks `{node_name: state_delta}` and passes
+``active_node`` to ``feed()``. Node lifecycle events (node_start / node_complete)
+are driven entirely by ``active_node`` transitions.
 """
 
 import pytest
@@ -16,11 +16,11 @@ def _types(events):
 
 
 @pytest.mark.unit
-def test_report_emits_start_report_complete_in_order():
+def test_report_emits_start_and_report():
     d = AnalysisEventDeriver()
-    events = d.feed({"market_report": "# 技术面"})
+    events = d.feed({"market_report": "# 技术面"}, active_node="Market Analyst")
 
-    assert _types(events) == ["node_start", "report", "node_complete"]
+    assert _types(events) == ["node_start", "report"]
     assert events[0]["node"] == "Market Analyst"
     assert events[0]["label"] == "市场分析师"
     assert events[1]["report_key"] == "market_report"
@@ -28,24 +28,23 @@ def test_report_emits_start_report_complete_in_order():
 
 
 @pytest.mark.unit
-def test_repeating_the_same_full_state_emits_nothing():
-    """The core stream_mode="values" contract."""
+def test_repeating_the_same_state_emits_nothing():
     d = AnalysisEventDeriver()
     chunk = {"market_report": "A", "sentiment_report": "B"}
 
-    first = d.feed(chunk)
+    first = d.feed(chunk, active_node="Market Analyst")
     assert len(first) > 0
-    assert d.feed(dict(chunk)) == []
-    assert d.feed(dict(chunk)) == []
+    assert d.feed(dict(chunk), active_node="Market Analyst") == []
 
 
 @pytest.mark.unit
-def test_accumulating_state_only_reports_the_new_key():
+def test_new_node_emits_complete_for_previous():
     d = AnalysisEventDeriver()
-    d.feed({"market_report": "A"})
-    # Second chunk still carries market_report — it must not be re-emitted.
-    events = d.feed({"market_report": "A", "news_report": "N"})
+    d.feed({"market_report": "A"}, active_node="Market Analyst")
+    events = d.feed({"news_report": "N"}, active_node="News Analyst")
 
+    assert events[0] == {"type": "node_complete", "node": "Market Analyst", "label": "市场分析师"}
+    assert events[1] == {"type": "node_start", "node": "News Analyst", "label": "新闻分析师"}
     reports = [e for e in events if e["type"] == "report"]
     assert [r["report_key"] for r in reports] == ["news_report"]
 
@@ -53,7 +52,8 @@ def test_accumulating_state_only_reports_the_new_key():
 @pytest.mark.unit
 def test_reports_in_one_chunk_follow_report_keys_order():
     d = AnalysisEventDeriver()
-    events = d.feed({key: f"content-{key}" for key in REPORT_KEYS})
+    events = d.feed({key: f"content-{key}" for key in REPORT_KEYS},
+                    active_node="Market Analyst")
 
     emitted = [e["report_key"] for e in events if e["type"] == "report"]
     assert emitted == list(REPORT_KEYS)
@@ -62,8 +62,10 @@ def test_reports_in_one_chunk_follow_report_keys_order():
 @pytest.mark.unit
 def test_debate_history_emits_only_the_new_tail():
     d = AnalysisEventDeriver()
-    d.feed({"investment_debate_state": {"bull_history": "round one"}})
-    events = d.feed({"investment_debate_state": {"bull_history": "round one\nround two"}})
+    d.feed({"investment_debate_state": {"bull_history": "round one"}},
+           active_node="Bull Researcher")
+    events = d.feed({"investment_debate_state": {"bull_history": "round one\nround two"}},
+                    active_node="Bull Researcher")
 
     debates = [e for e in events if e["type"] == "debate"]
     assert len(debates) == 1
@@ -76,15 +78,19 @@ def test_debate_history_emits_only_the_new_tail():
 def test_shrinking_history_emits_nothing():
     """A resumed checkpoint can replay an earlier, shorter state."""
     d = AnalysisEventDeriver()
-    d.feed({"investment_debate_state": {"bull_history": "aaaa"}})
-    assert d.feed({"investment_debate_state": {"bull_history": "aa"}}) == []
+    d.feed({"investment_debate_state": {"bull_history": "aaaa"}},
+           active_node="Bull Researcher")
+    assert d.feed({"investment_debate_state": {"bull_history": "aa"}},
+                  active_node="Bull Researcher") == []
 
 
 @pytest.mark.unit
 def test_investment_judgement_emitted_once():
     d = AnalysisEventDeriver()
-    first = d.feed({"investment_debate_state": {"judge_decision": "verdict"}})
-    second = d.feed({"investment_debate_state": {"judge_decision": "verdict"}})
+    first = d.feed({"investment_debate_state": {"judge_decision": "verdict"}},
+                   active_node="Research Manager")
+    second = d.feed({"investment_debate_state": {"judge_decision": "verdict"}},
+                    active_node="Research Manager")
 
     assert [e["type"] for e in first if e["type"] == "debate_decision"] == ["debate_decision"]
     assert second == []
@@ -97,7 +103,7 @@ def test_risk_debate_covers_all_three_speakers():
         "aggressive_history": "A",
         "conservative_history": "C",
         "neutral_history": "N",
-    }})
+    }}, active_node="Aggressive Analyst")
 
     speakers = [e["speaker"] for e in events if e["type"] == "debate"]
     assert speakers == ["Aggressive Analyst", "Conservative Analyst", "Neutral Analyst"]
@@ -108,11 +114,12 @@ def test_risk_debate_covers_all_three_speakers():
 def test_risk_speakers_track_independent_offsets():
     """One speaker growing must not consume another's slice offset."""
     d = AnalysisEventDeriver()
-    d.feed({"risk_debate_state": {"aggressive_history": "AAA"}})
+    d.feed({"risk_debate_state": {"aggressive_history": "AAA"}},
+           active_node="Aggressive Analyst")
     events = d.feed({"risk_debate_state": {
         "aggressive_history": "AAA",
         "conservative_history": "CCCCC",
-    }})
+    }}, active_node="Conservative Analyst")
 
     debates = [e for e in events if e["type"] == "debate"]
     assert len(debates) == 1
@@ -122,45 +129,54 @@ def test_risk_speakers_track_independent_offsets():
 @pytest.mark.unit
 def test_trader_plan_emitted_once():
     d = AnalysisEventDeriver()
-    first = d.feed({"trader_investment_plan": "plan"})
-    assert [e["type"] for e in first] == ["node_start", "trader_plan", "node_complete"]
-    assert d.feed({"trader_investment_plan": "plan"}) == []
+    first = d.feed({"trader_investment_plan": "plan"}, active_node="Trader")
+    assert "node_start" in _types(first)
+    assert "trader_plan" in _types(first)
+    assert d.feed({"trader_investment_plan": "plan"}, active_node="Trader") == []
 
 
 @pytest.mark.unit
 def test_decision_emitted_once_and_closes_the_active_node():
     d = AnalysisEventDeriver()
-    d.feed({"risk_debate_state": {"aggressive_history": "A"}})
-    events = d.feed({"final_trade_decision": "Overweight ..."})
+    d.feed({"risk_debate_state": {"aggressive_history": "A"}},
+           active_node="Aggressive Analyst")
+    events = d.feed({"final_trade_decision": "Overweight ..."},
+                    active_node="Portfolio Manager")
 
-    assert _types(events) == ["node_complete", "decision"]
-    assert events[0]["node"] == "Aggressive Analyst"
-    assert d.feed({"final_trade_decision": "Overweight ..."}) == []
+    assert "node_complete" in _types(events)
+    assert "decision" in _types(events)
+    # The node_complete should be for the previous node (Aggressive Analyst)
+    complete_evt = next(e for e in events if e["type"] == "node_complete")
+    assert complete_evt["node"] == "Aggressive Analyst"
+    # decision calls _exit internally, so re-feeding same node re-emits node_start
+    # but no duplicate decision content
+    repeat = d.feed({"final_trade_decision": "Overweight ..."},
+                    active_node="Portfolio Manager")
+    assert "decision" not in _types(repeat)
 
 
 @pytest.mark.unit
 def test_node_start_and_complete_are_balanced_over_a_full_run():
     d = AnalysisEventDeriver()
     events = []
-    for chunk in (
-        {"market_report": "M"},
-        {"market_report": "M", "news_report": "N"},
-        {"investment_debate_state": {"bull_history": "B"}},
-        {"investment_debate_state": {"bull_history": "B", "bear_history": "b"}},
-        {"investment_debate_state": {"bull_history": "B", "bear_history": "b",
-                                     "judge_decision": "J"}},
-        {"trader_investment_plan": "P"},
-        {"risk_debate_state": {"aggressive_history": "A"}},
-        {"final_trade_decision": "D"},
-    ):
-        events.extend(d.feed(chunk))
+    steps = [
+        ({"market_report": "M"}, "Market Analyst"),
+        ({"news_report": "N"}, "News Analyst"),
+        ({"investment_debate_state": {"bull_history": "B"}}, "Bull Researcher"),
+        ({"investment_debate_state": {"bear_history": "b"}}, "Bear Researcher"),
+        ({"investment_debate_state": {"judge_decision": "J"}}, "Research Manager"),
+        ({"trader_investment_plan": "P"}, "Trader"),
+        ({"risk_debate_state": {"aggressive_history": "A"}}, "Aggressive Analyst"),
+        ({"final_trade_decision": "D"}, "Portfolio Manager"),
+    ]
+    for chunk, node in steps:
+        events.extend(d.feed(chunk, active_node=node))
     events.extend(d.finalize())
 
     starts = _types(events).count("node_start")
     completes = _types(events).count("node_complete")
     assert starts == completes
 
-    # And they strictly alternate: no node opens while another is running.
     depth = 0
     for kind in _types(events):
         if kind == "node_start":
@@ -174,7 +190,8 @@ def test_node_start_and_complete_are_balanced_over_a_full_run():
 @pytest.mark.unit
 def test_finalize_closes_a_still_running_node():
     d = AnalysisEventDeriver()
-    d.feed({"risk_debate_state": {"neutral_history": "N"}})
+    d.feed({"risk_debate_state": {"neutral_history": "N"}},
+           active_node="Neutral Analyst")
     events = d.finalize()
 
     assert _types(events) == ["node_complete"]
@@ -188,21 +205,24 @@ def test_non_dict_and_empty_chunks_are_ignored():
     assert d.feed(None) == []
     assert d.feed([1, 2]) == []
     assert d.feed({}) == []
-    assert d.feed({"market_report": ""}) == []
+    assert d.feed({"market_report": ""}, active_node="Market Analyst") == [
+        {"type": "node_start", "node": "Market Analyst", "label": "市场分析师"},
+    ]
 
 
 @pytest.mark.unit
 def test_every_emitted_type_is_declared_in_event_types():
     d = AnalysisEventDeriver()
     events = []
-    for chunk in (
-        {"market_report": "M"},
-        {"investment_debate_state": {"bull_history": "B", "judge_decision": "J"}},
-        {"trader_investment_plan": "P"},
-        {"risk_debate_state": {"neutral_history": "N", "judge_decision": "RJ"}},
-        {"final_trade_decision": "D"},
-    ):
-        events.extend(d.feed(chunk))
+    steps = [
+        ({"market_report": "M"}, "Market Analyst"),
+        ({"investment_debate_state": {"bull_history": "B", "judge_decision": "J"}}, "Research Manager"),
+        ({"trader_investment_plan": "P"}, "Trader"),
+        ({"risk_debate_state": {"neutral_history": "N", "judge_decision": "RJ"}}, "Portfolio Manager"),
+        ({"final_trade_decision": "D"}, "Portfolio Manager"),
+    ]
+    for chunk, node in steps:
+        events.extend(d.feed(chunk, active_node=node))
     events.extend(d.finalize())
 
     assert {e["type"] for e in events} <= set(EVENT_TYPES)
@@ -212,3 +232,30 @@ def test_every_emitted_type_is_declared_in_event_types():
 def test_label_for_falls_back_to_the_raw_node_name():
     assert label_for("Market Analyst") == "市场分析师"
     assert label_for("Unknown Node") == "Unknown Node"
+
+
+@pytest.mark.unit
+def test_tool_nodes_are_ignored():
+    """Internal tool nodes should not trigger node_start."""
+    d = AnalysisEventDeriver()
+    d.feed({"market_report": "M"}, active_node="Market Analyst")
+    events = d.feed({}, active_node="tools")
+    assert events == []
+    assert d._active_node == "Market Analyst"
+
+
+@pytest.mark.unit
+def test_underscore_nodes_are_ignored():
+    d = AnalysisEventDeriver()
+    d.feed({"market_report": "M"}, active_node="Market Analyst")
+    events = d.feed({}, active_node="__end__")
+    assert events == []
+    assert d._active_node == "Market Analyst"
+
+
+@pytest.mark.unit
+def test_feed_without_active_node_still_processes_content():
+    """Backward compat: feed without active_node emits content but no lifecycle."""
+    d = AnalysisEventDeriver()
+    events = d.feed({"market_report": "M"})
+    assert [e["type"] for e in events] == ["report"]

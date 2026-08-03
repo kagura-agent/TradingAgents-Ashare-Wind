@@ -14,7 +14,7 @@ from web.runner import build_result, run_analysis, stream_analysis
 
 class FakePropagator:
     def __init__(self, args=None):
-        self.args = args if args is not None else {"stream_mode": "values"}
+        self.args = args if args is not None else {"stream_mode": "updates"}
         self.init_kwargs = None
 
     def create_initial_state(self, ticker, trade_date, **kwargs):
@@ -132,10 +132,9 @@ def spy_checkpointer(monkeypatch):
 
 
 CHUNKS = [
-    {"market_report": "# 技术面"},
-    {"market_report": "# 技术面", "trader_investment_plan": "计划"},
-    {"market_report": "# 技术面", "trader_investment_plan": "计划",
-     "final_trade_decision": "增持理由…"},
+    {"Market Analyst": {"market_report": "# 技术面"}},
+    {"Trader": {"trader_investment_plan": "计划"}},
+    {"Portfolio Manager": {"final_trade_decision": "增持理由…"}},
 ]
 
 
@@ -148,8 +147,7 @@ def test_stream_analysis_returns_merged_state_and_signal():
 
     state, signal = stream_analysis(ta, "600519.SH", "2026-07-31", events.append)
 
-    # stream_mode="values" chunks are cumulative; merging them all is belt and
-    # braces, and every key must survive.
+    # stream_mode="updates" chunks are per-node deltas; runner merges them.
     assert state["market_report"] == "# 技术面"
     assert state["trader_investment_plan"] == "计划"
     assert state["final_trade_decision"] == "增持理由…"

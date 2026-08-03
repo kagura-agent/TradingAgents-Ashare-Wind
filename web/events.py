@@ -1,14 +1,13 @@
-"""Derive UI stream events from LangGraph state snapshots.
+"""Derive UI stream events from LangGraph state updates.
 
-The graph is streamed with ``stream_mode="values"`` (see
+The graph is streamed with ``stream_mode="updates"`` (see
 ``GraphPropagator.get_graph_args`` in tradingagents/graph/propagation.py), which
-means **every chunk is the complete accumulated state**, not a per-node delta.
-A market report written by the first analyst is still present in the chunk
-emitted by the last one. So the only way to turn that stream into an
-append-only event feed is to remember what has already been emitted and diff
-against it — which is exactly what this module does.
+means **every chunk is a dict {node_name: state_delta}**. The caller
+(``web/runner.py``) unpacks this and passes the ``active_node`` to :meth:`feed`,
+giving us an authoritative signal for node transitions without needing to infer
+them from tool calls or report keys.
 
-Keeping the diffing here, separate from the graph plumbing in
+Keeping the event derivation here, separate from the graph plumbing in
 ``web/runner.py``, is what makes it testable: ``AnalysisEventDeriver`` performs
 no I/O and knows nothing about LangGraph, so its whole contract can be
 exercised with hand-built dicts.
@@ -66,25 +65,6 @@ REPORT_KEYS: dict[str, str] = {
     "industry_report": "Industry Chain Analyst",
 }
 
-# Tool name -> the analyst that owns it. Used to detect which analyst is
-# actively working before its report appears (tool-calling phase).
-_TOOL_TO_ANALYST: dict[str, str] = {
-    "get_stock_data": "Market Analyst",
-    "get_indicators": "Market Analyst",
-    "get_verified_market_snapshot": "Market Analyst",
-    "get_news": "News Analyst",
-    "get_earnings_preannouncements": "News Analyst",
-    "get_global_news": "News Analyst",
-    "get_insider_transactions": "News Analyst",
-    "get_macro_indicators": "News Analyst",
-    "get_fundamentals": "Fundamentals Analyst",
-    "get_balance_sheet": "Fundamentals Analyst",
-    "get_cashflow": "Fundamentals Analyst",
-    "get_income_statement": "Fundamentals Analyst",
-    "get_periodic_reports": "Annual Report Analyst",
-    "get_industry_chain_context": "Industry Chain Analyst",
-}
-
 # Risk-debate history key -> the node that appends to it.
 _RISK_SPEAKERS: tuple[tuple[str, str], ...] = (
     ("aggressive_history", "Aggressive Analyst"),
@@ -115,12 +95,11 @@ def label_for(node: str) -> str:
 
 
 class AnalysisEventDeriver:
-    """Turn a stream of full-state snapshots into an append-only event feed.
+    """Turn a stream of state updates into an append-only event feed.
 
-    Call :meth:`feed` with each chunk from ``graph.stream(...)``; it returns the
-    events that chunk newly justifies, in emission order. Feeding the same
-    chunk twice yields nothing the second time — the invariant that makes
-    ``stream_mode="values"`` usable and the one most worth testing.
+    Call :meth:`feed` with each state update from ``graph.stream(...)`` along
+    with the ``active_node`` that produced it; it returns the events that chunk
+    newly justifies, in emission order.
 
     The instance is single-use and not thread-safe: one deriver per analysis
     run, driven by that run's worker thread.
@@ -128,29 +107,13 @@ class AnalysisEventDeriver:
 
     def __init__(self) -> None:
         self._seen_reports: set[str] = set()
-        # Debate histories only ever grow, so the length of what we have
-        # already emitted is enough to slice off the new text.
         self._emitted_len: dict[str, int] = {}
         self._seen_judgements: set[str] = set()
         self._had_trader = False
         self._had_decision = False
         self._active_node: str | None = None
-        # Track messages length to detect new tool calls.
-        self._prev_messages_len: int = 0
-        # Analysts already marked as started (via tool-call detection).
-        self._started_analysts: set[str] = set()
 
     # -- helpers ----------------------------------------------------------
-    def _enter(self, node: str, out: list[dict]) -> None:
-        """Mark ``node`` as the running one, closing out whichever preceded it."""
-        if self._active_node == node:
-            return
-        if self._active_node is not None:
-            out.append({"type": "node_complete", "node": self._active_node,
-                        "label": label_for(self._active_node)})
-        self._active_node = node
-        out.append({"type": "node_start", "node": node, "label": label_for(node)})
-
     def _exit(self, out: list[dict]) -> None:
         """Close the running node, if any."""
         if self._active_node is None:
@@ -159,43 +122,8 @@ class AnalysisEventDeriver:
                     "label": label_for(self._active_node)})
         self._active_node = None
 
-    def _detect_active_analyst(self, chunk: dict, out: list[dict]) -> None:
-        """Fire node_start when we see new tool_calls in messages.
-
-        Analysts call tools before producing their report. By detecting tool
-        calls we can mark the analyst as 'running' while it gathers data,
-        instead of waiting until the report appears.
-        """
-        messages = chunk.get("messages")
-        if not isinstance(messages, list):
-            return
-
-        # Only look at messages we haven't processed yet.
-        new_msgs = messages[self._prev_messages_len:]
-        self._prev_messages_len = len(messages)
-
-        for msg in new_msgs:
-            # LangChain AIMessage with tool_calls
-            tool_calls = getattr(msg, "tool_calls", None) or []
-            if not tool_calls:
-                # Also check dict-style messages
-                if isinstance(msg, dict):
-                    tool_calls = msg.get("tool_calls", [])
-            for tc in tool_calls:
-                name = tc.get("name", "") if isinstance(tc, dict) else getattr(tc, "name", "")
-                analyst = _TOOL_TO_ANALYST.get(name)
-                if analyst and analyst not in self._started_analysts:
-                    self._started_analysts.add(analyst)
-                    self._enter(analyst, out)
-                    break  # One node_start per chunk is enough
-
     def _new_text(self, key: str, history: str) -> str | None:
-        """Return the not-yet-emitted tail of a monotonically growing history.
-
-        Returns ``None`` when there is nothing new. A history that somehow
-        shrank — a resumed checkpoint replaying an earlier state — also yields
-        ``None`` rather than a negative slice or a duplicate re-emission.
-        """
+        """Return the not-yet-emitted tail of a monotonically growing history."""
         already = self._emitted_len.get(key, 0)
         if not history or len(history) <= already:
             return None
@@ -204,16 +132,22 @@ class AnalysisEventDeriver:
         return tail
 
     # -- main entry point --------------------------------------------------
-    def feed(self, chunk: dict[str, Any]) -> list[dict]:
+    def feed(self, chunk: dict[str, Any], *, active_node: str | None = None) -> list[dict]:
         """Return the events newly justified by ``chunk``."""
         out: list[dict] = []
         if not isinstance(chunk, dict):
             return out
 
-        # Detect analysts starting work via tool calls in messages BEFORE
-        # their report appears. This makes the avatar animate while the
-        # analyst is calling tools, not only after the report is done.
-        self._detect_active_analyst(chunk, out)
+        # Handle node transitions based on authoritative active_node.
+        if active_node:
+            # Skip internal/tool nodes — keep the current analyst active.
+            if active_node.startswith("_") or active_node == "tools":
+                pass
+            elif active_node in NODE_LABELS and active_node != self._active_node:
+                self._exit(out)
+                self._active_node = active_node
+                out.append({"type": "node_start", "node": active_node,
+                            "label": label_for(active_node)})
 
         self._feed_reports(chunk, out)
         self._feed_investment_debate(chunk, out)
@@ -235,10 +169,6 @@ class AnalysisEventDeriver:
             if not content or key in self._seen_reports:
                 continue
             self._seen_reports.add(key)
-            # If this analyst was already started via tool-call detection,
-            # just emit the report and close it. Otherwise enter+report.
-            if node not in self._started_analysts:
-                self._enter(node, out)
             out.append({
                 "type": "report",
                 "node": node,
@@ -247,8 +177,6 @@ class AnalysisEventDeriver:
                 "content": content,
                 "summary": chunk.get(f"{key}_summary") or "",
             })
-            # Report done — close the node.
-            self._exit(out)
 
     def _feed_investment_debate(self, chunk: dict, out: list[dict]) -> None:
         state = chunk.get("investment_debate_state")
@@ -259,47 +187,39 @@ class AnalysisEventDeriver:
             text = self._new_text(f"invest.{key}", state.get(key) or "")
             if text is None:
                 continue
-            self._enter(node, out)
-            summary_key = key.replace("_history", "_summary")
             out.append({
                 "type": "debate",
                 "phase": "investment",
                 "speaker": node,
                 "label": label_for(node),
                 "content": text,
-                "summary": state.get(summary_key) or "",
+                "summary": state.get(key.replace("_history", "_summary")) or "",
             })
 
         judge = state.get("judge_decision") or ""
         if judge and "invest.judge" not in self._seen_judgements:
             self._seen_judgements.add("invest.judge")
-            node = "Research Manager"
-            self._enter(node, out)
             out.append({
                 "type": "debate_decision",
                 "phase": "investment",
-                "speaker": node,
-                "label": label_for(node),
+                "speaker": "Research Manager",
+                "label": label_for("Research Manager"),
                 "content": judge,
                 "summary": chunk.get("investment_plan_summary") or "",
             })
-            self._exit(out)
 
     def _feed_trader(self, chunk: dict, out: list[dict]) -> None:
         plan = chunk.get("trader_investment_plan") or ""
         if not plan or self._had_trader:
             return
         self._had_trader = True
-        node = "Trader"
-        self._enter(node, out)
         out.append({
             "type": "trader_plan",
-            "node": node,
-            "label": label_for(node),
+            "node": "Trader",
+            "label": label_for("Trader"),
             "content": plan,
             "summary": chunk.get("trader_investment_plan_summary") or "",
         })
-        self._exit(out)
 
     def _feed_risk_debate(self, chunk: dict, out: list[dict]) -> None:
         state = chunk.get("risk_debate_state")
@@ -310,27 +230,23 @@ class AnalysisEventDeriver:
             text = self._new_text(f"risk.{key}", state.get(key) or "")
             if text is None:
                 continue
-            self._enter(node, out)
-            summary_key = key.replace("_history", "_summary")
             out.append({
                 "type": "debate",
                 "phase": "risk",
                 "speaker": node,
                 "label": label_for(node),
                 "content": text,
-                "summary": state.get(summary_key) or "",
+                "summary": state.get(key.replace("_history", "_summary")) or "",
             })
 
         judge = state.get("judge_decision") or ""
         if judge and "risk.judge" not in self._seen_judgements:
             self._seen_judgements.add("risk.judge")
-            node = "Portfolio Manager"
-            self._enter(node, out)
             out.append({
                 "type": "debate_decision",
                 "phase": "risk",
-                "speaker": node,
-                "label": label_for(node),
+                "speaker": "Portfolio Manager",
+                "label": label_for("Portfolio Manager"),
                 "content": judge,
                 "summary": chunk.get("final_trade_decision_summary") or "",
             })
