@@ -309,8 +309,10 @@ def test_build_result_shape():
 
     assert result["market_report"] == "M"
     assert result["investment_debate"] == {"bull_history": "B", "bear_history": "b",
-                                           "judge_decision": "J"}
+                                           "bull_summary": "", "bear_summary": "",
+                                           "judge_decision": "J", "judge_decision_summary": ""}
     assert result["risk_debate"]["neutral_history"] == "neu"
+    assert result["risk_debate"]["neutral_summary"] == ""
     assert result["trader_plan"] == "P"
     assert result["final_decision"] == "决策文本"
     assert result["signal"] == "Overweight"

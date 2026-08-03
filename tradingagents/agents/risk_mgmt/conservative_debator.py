@@ -2,6 +2,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_conservative_debator(llm):
@@ -41,6 +42,7 @@ Here is the current conversation history: {history} Here is the last response fr
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
+        _, summary = extract_structured_summary(llm, response.content, "Conservative Analyst")
 
         argument = f"Conservative Analyst: {response.content}"
 
@@ -49,6 +51,9 @@ Engage by questioning their optimism and emphasizing the potential downsides the
             "aggressive_history": risk_debate_state.get("aggressive_history", ""),
             "conservative_history": conservative_history + "\n" + argument,
             "neutral_history": risk_debate_state.get("neutral_history", ""),
+            "aggressive_summary": risk_debate_state.get("aggressive_summary", ""),
+            "conservative_summary": summary,
+            "neutral_summary": risk_debate_state.get("neutral_summary", ""),
             "latest_speaker": "Conservative",
             "current_aggressive_response": risk_debate_state.get(
                 "current_aggressive_response", ""

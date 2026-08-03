@@ -66,8 +66,8 @@ export function viewFromState(state: AnalysisState): ResultView {
   }
 }
 
-function entry(speaker: string, label: string, content: string): DebateEntry[] {
-  return content ? [{ speaker, label, content }] : []
+function entry(speaker: string, label: string, content: string, summary?: string): DebateEntry[] {
+  return content ? [{ speaker, label, content, summary }] : []
 }
 
 export function viewFromHistory(result: AnalysisResult): ResultView {
@@ -83,17 +83,17 @@ export function viewFromHistory(result: AnalysisResult): ResultView {
   return {
     reports: orderReports(reports),
     investmentDebate: [
-      ...entry('Bull Researcher', '多头研究员', result.investment_debate.bull_history),
-      ...entry('Bear Researcher', '空头研究员', result.investment_debate.bear_history),
+      ...entry('Bull Researcher', '多头研究员', result.investment_debate.bull_history, result.investment_debate.bull_summary),
+      ...entry('Bear Researcher', '空头研究员', result.investment_debate.bear_history, result.investment_debate.bear_summary),
     ],
     investmentJudge: result.investment_debate.judge_decision || null,
     investmentJudgeSummary: result.investment_debate.judge_decision_summary || null,
     traderPlan: result.trader_plan || null,
     traderPlanSummary: result.trader_plan_summary || null,
     riskDebate: [
-      ...entry('Aggressive Analyst', '激进风控', result.risk_debate.aggressive_history),
-      ...entry('Conservative Analyst', '保守风控', result.risk_debate.conservative_history),
-      ...entry('Neutral Analyst', '中性风控', result.risk_debate.neutral_history),
+      ...entry('Aggressive Analyst', '激进风控', result.risk_debate.aggressive_history, result.risk_debate.aggressive_summary),
+      ...entry('Conservative Analyst', '保守风控', result.risk_debate.conservative_history, result.risk_debate.conservative_summary),
+      ...entry('Neutral Analyst', '中性风控', result.risk_debate.neutral_history, result.risk_debate.neutral_summary),
     ],
     riskJudge: result.risk_debate.judge_decision || null,
     riskJudgeSummary: result.risk_debate.judge_decision_summary || null,

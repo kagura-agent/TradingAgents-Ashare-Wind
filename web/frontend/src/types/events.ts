@@ -57,6 +57,7 @@ export interface DebateEvent {
   speaker: string
   label: string
   content: string
+  summary?: string
 }
 
 export interface DebateDecisionEvent {

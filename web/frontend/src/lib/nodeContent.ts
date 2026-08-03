@@ -82,6 +82,14 @@ export function nodeSummary(slug: string, view: ResultView): string | null {
     return report?.summary || null
   }
 
+  const debater = DEBATERS[slug]
+  if (debater) {
+    const entries = debater.phase === 'risk' ? view.riskDebate : view.investmentDebate
+    const matching = entries.filter((e) => e.speaker === debater.node)
+    const last = matching[matching.length - 1]
+    return last?.summary || null
+  }
+
   switch (slug) {
     case 'research-manager':
       return view.investmentJudgeSummary || null

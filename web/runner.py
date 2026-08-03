@@ -59,6 +59,8 @@ def build_result(final_state: dict[str, Any], decision_text: str, signal: str) -
         "investment_debate": {
             "bull_history": invest.get("bull_history", ""),
             "bear_history": invest.get("bear_history", ""),
+            "bull_summary": invest.get("bull_summary", ""),
+            "bear_summary": invest.get("bear_summary", ""),
             "judge_decision": invest.get("judge_decision", ""),
             "judge_decision_summary": invest.get("judge_decision_summary", ""),
         },
@@ -68,6 +70,9 @@ def build_result(final_state: dict[str, Any], decision_text: str, signal: str) -
             "aggressive_history": risk.get("aggressive_history", ""),
             "conservative_history": risk.get("conservative_history", ""),
             "neutral_history": risk.get("neutral_history", ""),
+            "aggressive_summary": risk.get("aggressive_summary", ""),
+            "conservative_summary": risk.get("conservative_summary", ""),
+            "neutral_summary": risk.get("neutral_summary", ""),
             "judge_decision": risk.get("judge_decision", ""),
             "judge_decision_summary": risk.get("judge_decision_summary", ""),
         },

@@ -2,6 +2,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structured import extract_structured_summary
 
 
 def create_bull_researcher(llm):
@@ -49,6 +50,7 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 """ + get_language_instruction()
 
         response = llm.invoke(prompt)
+        _, summary = extract_structured_summary(llm, response.content, "Bull Analyst")
 
         argument = f"Bull Analyst: {response.content}"
 
@@ -56,6 +58,8 @@ Use this information to deliver a compelling bull argument, refute the bear's co
             "history": history + "\n" + argument,
             "bull_history": bull_history + "\n" + argument,
             "bear_history": investment_debate_state.get("bear_history", ""),
+            "bull_summary": summary,
+            "bear_summary": investment_debate_state.get("bear_summary", ""),
             "current_response": argument,
             "count": investment_debate_state["count"] + 1,
         }

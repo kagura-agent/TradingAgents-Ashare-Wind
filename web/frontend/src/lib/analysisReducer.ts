@@ -21,6 +21,7 @@ export interface DebateEntry {
   speaker: string
   label: string
   content: string
+  summary?: string
 }
 
 export interface ReportEntry {
@@ -129,6 +130,7 @@ function applyEvent(state: AnalysisState, event: AnalysisEvent): AnalysisState {
         speaker: event.speaker,
         label: event.label,
         content: event.content,
+        summary: event.summary,
       }
       return event.phase === 'risk'
         ? { ...state, riskDebate: [...state.riskDebate, entry] }

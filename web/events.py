@@ -198,12 +198,14 @@ class AnalysisEventDeriver:
             if text is None:
                 continue
             self._enter(node, out)
+            summary_key = key.replace("_history", "_summary")
             out.append({
                 "type": "debate",
                 "phase": "investment",
                 "speaker": node,
                 "label": label_for(node),
                 "content": text,
+                "summary": state.get(summary_key) or "",
             })
 
         judge = state.get("judge_decision") or ""
@@ -247,12 +249,14 @@ class AnalysisEventDeriver:
             if text is None:
                 continue
             self._enter(node, out)
+            summary_key = key.replace("_history", "_summary")
             out.append({
                 "type": "debate",
                 "phase": "risk",
                 "speaker": node,
                 "label": label_for(node),
                 "content": text,
+                "summary": state.get(summary_key) or "",
             })
 
         judge = state.get("judge_decision") or ""

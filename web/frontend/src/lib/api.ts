@@ -23,13 +23,16 @@ export interface AnalysisResult {
   fundamentals_report_summary?: string
   annual_report_summary?: string
   industry_report_summary?: string
-  investment_debate: { bull_history: string; bear_history: string; judge_decision: string; judge_decision_summary?: string }
+  investment_debate: { bull_history: string; bear_history: string; bull_summary?: string; bear_summary?: string; judge_decision: string; judge_decision_summary?: string }
   trader_plan: string
   trader_plan_summary?: string
   risk_debate: {
     aggressive_history: string
     conservative_history: string
     neutral_history: string
+    aggressive_summary?: string
+    conservative_summary?: string
+    neutral_summary?: string
     judge_decision: string
     judge_decision_summary?: string
   }
