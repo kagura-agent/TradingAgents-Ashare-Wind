@@ -75,31 +75,30 @@ export function viewFromHistory(result: AnalysisResult): ResultView {
   for (const section of REPORT_SECTIONS) {
     const content = (result as unknown as Record<string, string>)[section.key]
     if (content) {
-      reports[section.key] = { key: section.key, node: section.key, label: section.title, content }
+      const summary = (result as unknown as Record<string, string>)[`${section.key}_summary`] || undefined
+      reports[section.key] = { key: section.key, node: section.key, label: section.title, content, summary }
     }
   }
 
   return {
     reports: orderReports(reports),
-    // A stored run keeps whole histories rather than per-turn slices, so each
-    // speaker collapses to a single entry.
     investmentDebate: [
       ...entry('Bull Researcher', '多头研究员', result.investment_debate.bull_history),
       ...entry('Bear Researcher', '空头研究员', result.investment_debate.bear_history),
     ],
     investmentJudge: result.investment_debate.judge_decision || null,
-    investmentJudgeSummary: null,
+    investmentJudgeSummary: result.investment_debate.judge_decision_summary || null,
     traderPlan: result.trader_plan || null,
-    traderPlanSummary: null,
+    traderPlanSummary: result.trader_plan_summary || null,
     riskDebate: [
       ...entry('Aggressive Analyst', '激进风控', result.risk_debate.aggressive_history),
       ...entry('Conservative Analyst', '保守风控', result.risk_debate.conservative_history),
       ...entry('Neutral Analyst', '中性风控', result.risk_debate.neutral_history),
     ],
     riskJudge: result.risk_debate.judge_decision || null,
-    riskJudgeSummary: null,
+    riskJudgeSummary: result.risk_debate.judge_decision_summary || null,
     decision: result.final_decision || null,
-    decisionSummary: null,
+    decisionSummary: result.final_decision_summary || null,
     signal: result.signal || null,
   }
 }
