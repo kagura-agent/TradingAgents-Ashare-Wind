@@ -48,6 +48,7 @@ export interface ReportEvent {
   label: string
   report_key: string
   content: string
+  summary?: string
 }
 
 export interface DebateEvent {
@@ -64,6 +65,7 @@ export interface DebateDecisionEvent {
   speaker: string
   label: string
   content: string
+  summary?: string
 }
 
 export interface TraderPlanEvent {
@@ -71,11 +73,13 @@ export interface TraderPlanEvent {
   node: string
   label: string
   content: string
+  summary?: string
 }
 
 export interface DecisionEvent {
   type: 'decision'
   content: string
+  summary?: string
 }
 
 export interface CompleteEvent {

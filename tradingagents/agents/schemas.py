@@ -102,6 +102,18 @@ class ResearchPlan(BaseModel):
     )
 
 
+def _first_sentence(text: str) -> str:
+    for sep in (".  ", "。", ". ", ".\n"):
+        idx = text.find(sep)
+        if idx != -1:
+            return text[: idx + 1].strip()
+    return text[:120].strip()
+
+
+def summary_from_research_plan(plan: ResearchPlan) -> str:
+    return f"{plan.recommendation.value} — {_first_sentence(plan.rationale)}"
+
+
 def render_research_plan(plan: ResearchPlan) -> str:
     """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
     return "\n".join([
@@ -153,6 +165,10 @@ class TraderProposal(BaseModel):
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+
+def summary_from_trader(proposal: TraderProposal) -> str:
+    return f"{proposal.action.value} — {_first_sentence(proposal.reasoning)}"
 
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
@@ -226,6 +242,10 @@ class PortfolioDecision(BaseModel):
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+
+def summary_from_pm_decision(decision: PortfolioDecision) -> str:
+    return f"{decision.rating.value} — {_first_sentence(decision.executive_summary)}"
 
 
 def render_pm_decision(decision: PortfolioDecision) -> str:
@@ -323,6 +343,10 @@ class SentimentReport(BaseModel):
             "with concrete evidence so every point adds new signal for the trader."
         ),
     )
+
+
+def summary_from_sentiment(report: SentimentReport) -> str:
+    return f"{report.overall_band.value} ({report.overall_score:.1f}/10)"
 
 
 def render_sentiment_report(report: SentimentReport) -> str:

@@ -19,7 +19,7 @@
 
 import type { NodeStatus } from '../lib/analysisReducer'
 import { excerpt } from '../lib/excerpt'
-import { nodeTexts } from '../lib/nodeContent'
+import { nodeTexts, nodeSummary } from '../lib/nodeContent'
 import {
   NODE_STATUS_TEXT,
   STAGE_ICONS,
@@ -60,11 +60,12 @@ interface Props {
 
 interface BubbleProps {
   texts: string[]
+  summary: string | null
   status: NodeStatus
   limit: number
 }
 
-function Bubbles({ texts, status, limit }: BubbleProps) {
+function Bubbles({ texts, summary, status, limit }: BubbleProps) {
   const shown = texts.slice(-limit)
   const hidden = texts.length - shown.length
 
@@ -75,6 +76,8 @@ function Bubbles({ texts, status, limit }: BubbleProps) {
         <p className="office__bubble" data-empty="true">
           {status === 'running' ? '正在写…' : '待命'}
         </p>
+      ) : summary ? (
+        <p className="office__bubble">{summary}</p>
       ) : (
         shown.map((text, i) => (
           <p key={hidden + i} className="office__bubble">
@@ -90,6 +93,7 @@ interface SeatProps {
   node: TimelineNode
   status: NodeStatus
   texts: string[]
+  summary: string | null
   pose: Pose
   /** How many recent turns hang above this head; `0` means no bubble at all. */
   bubbles: number
@@ -99,7 +103,7 @@ interface SeatProps {
   onSelect: (slug: string) => void
 }
 
-function Seat({ node, status, texts, pose, bubbles, facing, side, onSelect }: SeatProps) {
+function Seat({ node, status, texts, summary, pose, bubbles, facing, side, onSelect }: SeatProps) {
   const person = (
     <>
       <PixelAvatar pose={pose} look={lookOf(node.node)} facing={facing} />
@@ -124,7 +128,7 @@ function Seat({ node, status, texts, pose, bubbles, facing, side, onSelect }: Se
           readable on its own. Dropped entirely rather than emptied when the
           room shows none — an empty bubble still says "待命", and fourteen of
           those is the noise the overview exists to avoid. */}
-      {bubbles > 0 && <Bubbles texts={texts} status={status} limit={bubbles} />}
+      {bubbles > 0 && <Bubbles texts={texts} summary={summary} status={status} limit={bubbles} />}
       {texts.length > 0 ? (
         <button
           type="button"
@@ -166,6 +170,7 @@ export function Office({ stage, nodes, view, turns, onSelectNode, compact, onOpe
     extra: { bubbles?: number; facing?: 'left' | 'right'; side?: string } = {},
   ) => {
     const texts = nodeTexts(node.slug, view)
+    const summary = nodeSummary(node.slug, view)
     // An archived run carries no node statuses, so content stands in for them —
     // the same fallback the timeline makes for clickability.
     const status = nodes[node.node] ?? (texts.length > 0 ? 'done' : 'pending')
@@ -181,6 +186,7 @@ export function Office({ stage, nodes, view, turns, onSelectNode, compact, onOpe
         node={node}
         status={status}
         texts={texts}
+        summary={summary}
         pose={pose}
         bubbles={compact && !speaks ? 0 : limit}
         facing={extra.facing}

@@ -1,6 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
+    SUMMARY_INSTRUCTION,
+    extract_summary,
     get_indicators,
     get_instrument_context_from_state,
     get_language_instruction,
@@ -54,6 +56,7 @@ Instrument identity is fixed by the instrument context. In the report title and 
 
 Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + SUMMARY_INSTRUCTION
             + get_language_instruction()
         )
 
@@ -85,13 +88,15 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
         result = chain.invoke(state["messages"])
 
         report = ""
+        summary = ""
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            report, summary = extract_summary(result.content)
 
         return {
             "messages": [result],
             "market_report": report,
+            "market_report_summary": summary,
         }
 
     return market_analyst_node

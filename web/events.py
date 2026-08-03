@@ -184,6 +184,7 @@ class AnalysisEventDeriver:
                 "label": label_for(node),
                 "report_key": key,
                 "content": content,
+                "summary": chunk.get(f"{key}_summary") or "",
             })
             self._exit(out)
 
@@ -216,6 +217,7 @@ class AnalysisEventDeriver:
                 "speaker": node,
                 "label": label_for(node),
                 "content": judge,
+                "summary": chunk.get("investment_plan_summary") or "",
             })
             self._exit(out)
 
@@ -231,6 +233,7 @@ class AnalysisEventDeriver:
             "node": node,
             "label": label_for(node),
             "content": plan,
+            "summary": chunk.get("trader_investment_plan_summary") or "",
         })
         self._exit(out)
 
@@ -263,6 +266,7 @@ class AnalysisEventDeriver:
                 "speaker": node,
                 "label": label_for(node),
                 "content": judge,
+                "summary": chunk.get("final_trade_decision_summary") or "",
             })
 
     def _feed_decision(self, chunk: dict, out: list[dict]) -> None:
@@ -271,4 +275,8 @@ class AnalysisEventDeriver:
             return
         self._had_decision = True
         self._exit(out)
-        out.append({"type": "decision", "content": final})
+        out.append({
+            "type": "decision",
+            "content": final,
+            "summary": chunk.get("final_trade_decision_summary") or "",
+        })

@@ -67,3 +67,29 @@ export function nodeTexts(slug: string, view: ResultView): string[] {
 export function nodeHasContent(slug: string, view: ResultView): boolean {
   return nodeTexts(slug, view).length > 0
 }
+
+/**
+ * One-line summary for a node, or null if unavailable.
+ *
+ * Structured agents produce a summary alongside their report; free-form
+ * agents append a SUMMARY line that the backend extracts.  The frontend
+ * prefers this over `excerpt(content)` when displaying speech bubbles.
+ */
+export function nodeSummary(slug: string, view: ResultView): string | null {
+  const reportKey = SLUG_TO_REPORT_KEY[slug]
+  if (reportKey) {
+    const report = view.reports.find((r) => r.key === reportKey)
+    return report?.summary || null
+  }
+
+  switch (slug) {
+    case 'research-manager':
+      return view.investmentJudgeSummary || null
+    case 'trader':
+      return view.traderPlanSummary || null
+    case 'portfolio-manager':
+      return view.decisionSummary || null
+    default:
+      return null
+  }
+}

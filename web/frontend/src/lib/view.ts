@@ -15,10 +15,14 @@ export interface ResultView {
   reports: (ReportEntry & { title: string })[]
   investmentDebate: DebateEntry[]
   investmentJudge: string | null
+  investmentJudgeSummary: string | null
   traderPlan: string | null
+  traderPlanSummary: string | null
   riskDebate: DebateEntry[]
   riskJudge: string | null
+  riskJudgeSummary: string | null
   decision: string | null
+  decisionSummary: string | null
   signal: string | null
 }
 
@@ -26,10 +30,14 @@ export const EMPTY_VIEW: ResultView = {
   reports: [],
   investmentDebate: [],
   investmentJudge: null,
+  investmentJudgeSummary: null,
   traderPlan: null,
+  traderPlanSummary: null,
   riskDebate: [],
   riskJudge: null,
+  riskJudgeSummary: null,
   decision: null,
+  decisionSummary: null,
   signal: null,
 }
 
@@ -46,10 +54,14 @@ export function viewFromState(state: AnalysisState): ResultView {
     reports: orderReports(state.reports),
     investmentDebate: state.investmentDebate,
     investmentJudge: state.investmentJudge,
+    investmentJudgeSummary: state.investmentJudgeSummary,
     traderPlan: state.traderPlan,
+    traderPlanSummary: state.traderPlanSummary,
     riskDebate: state.riskDebate,
     riskJudge: state.riskJudge,
+    riskJudgeSummary: state.riskJudgeSummary,
     decision: state.decision,
+    decisionSummary: state.decisionSummary,
     signal: state.signal,
   }
 }
@@ -76,14 +88,18 @@ export function viewFromHistory(result: AnalysisResult): ResultView {
       ...entry('Bear Researcher', '空头研究员', result.investment_debate.bear_history),
     ],
     investmentJudge: result.investment_debate.judge_decision || null,
+    investmentJudgeSummary: null,
     traderPlan: result.trader_plan || null,
+    traderPlanSummary: null,
     riskDebate: [
       ...entry('Aggressive Analyst', '激进风控', result.risk_debate.aggressive_history),
       ...entry('Conservative Analyst', '保守风控', result.risk_debate.conservative_history),
       ...entry('Neutral Analyst', '中性风控', result.risk_debate.neutral_history),
     ],
     riskJudge: result.risk_debate.judge_decision || null,
+    riskJudgeSummary: null,
     decision: result.final_decision || null,
+    decisionSummary: null,
     signal: result.signal || null,
   }
 }
